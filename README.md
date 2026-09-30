@@ -38,13 +38,12 @@ Die Belegung lässt sich in der App unter **Dashboard → Verdrahtung** ändern.
 
 ## Neue Version veröffentlichen
 
-```bash
-# optional: Beschreibung in release-notes/v2.1.0.md anlegen
-git tag v2.1.0
-git push origin v2.1.0
-```
+1. Versionsnummer in der Datei `VERSION` erhöhen (z. B. `2.1.0`)
+2. optional: Beschreibung in `release-notes/v2.1.0.md` anlegen
+3. committen und auf `main` pushen
 
-GitHub baut daraufhin App und Installer (`.github/workflows/release.yml`) und veröffentlicht sie.
+GitHub baut daraufhin App und Installer (`.github/workflows/release.yml`), legt den Tag `v2.1.0` an
+und veröffentlicht alles als Release. (Ein gepushter Tag `v*` funktioniert ebenfalls.)
 Installierte Apps finden das Update automatisch. Wird `firmware/code.py` (`FW_VERSION`) geändert,
 aktualisiert die App danach auch das Dashboard.
 

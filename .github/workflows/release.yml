@@ -1,10 +1,13 @@
-# Baut bei jedem Versions-Tag (z. B. v2.1.0) die App und den Installer
-# und veröffentlicht beides als GitHub Release. Die App findet das Update dann selbst.
+# Veröffentlicht automatisch eine neue Version, sobald sich die Datei VERSION ändert
+# (oder ein Tag v* gepusht wird). Die App findet das Update dann selbst.
 name: Release
 
 on:
   push:
+    branches: ["main"]
+    paths: ["VERSION"]
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,18 +18,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Version bestimmen
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then V="${GITHUB_REF_NAME#v}"; else V="$(tr -d ' \r\n' < VERSION)"; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          if gh release view "v$V" >/dev/null 2>&1; then
+            echo "Release v$V existiert bereits – nichts zu tun."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-go@v5
+        if: steps.v.outputs.skip != 'true'
         with:
           go-version-file: go.mod
 
       - name: NSIS installieren
+        if: steps.v.outputs.skip != 'true'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq nsis
 
-      - name: Version bestimmen
-        id: v
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-
       - name: App bauen
+        if: steps.v.outputs.skip != 'true'
         env:
           GOOS: windows
           GOARCH: amd64
@@ -38,18 +52,21 @@ jobs:
             -o dist/PicoDashboard.exe .
 
       - name: Installer bauen
+        if: steps.v.outputs.skip != 'true'
         working-directory: installer
         run: makensis -V2 -DVERSION=${{ steps.v.outputs.version }} setup.nsi
 
       - name: Prüfsumme
+        if: steps.v.outputs.skip != 'true'
         working-directory: dist
         run: sha256sum PicoDashboard-Setup.exe > SHA256SUMS.txt
 
       - name: Release veröffentlichen
+        if: steps.v.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          NOTES=""
-          if [ -f "release-notes/${GITHUB_REF_NAME}.md" ]; then NOTES="--notes-file release-notes/${GITHUB_REF_NAME}.md"; else NOTES="--generate-notes"; fi
-          gh release create "$GITHUB_REF_NAME" dist/PicoDashboard-Setup.exe dist/SHA256SUMS.txt \
-            --title "Pico Dashboard ${{ steps.v.outputs.version }}" $NOTES
+          V="${{ steps.v.outputs.version }}"
+          if [ -f "release-notes/v$V.md" ]; then NOTES=(--notes-file "release-notes/v$V.md"); else NOTES=(--generate-notes); fi
+          gh release create "v$V" dist/PicoDashboard-Setup.exe dist/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" --title "Pico Dashboard $V" "${NOTES[@]}"
