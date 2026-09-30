@@ -3,7 +3,7 @@
 # Diese Datei wird von der App "MakerDash" installiert und aktualisiert.
 # Einstellungen (Pins usw.) stehen in settings.toml und werden in der App geändert.
 
-FW_VERSION = "2.1.0"
+FW_VERSION = "2.1.1"
 PROTO = 2
 BOOT_MARKER = "DASHBOOT 2"
 
@@ -224,9 +224,46 @@ ICON_LAUTSPRECHER = ("000001000", "000011000", "011111010", "011111001",
                      "011111001", "011111010", "000011000", "000001000")
 
 
+# bitmap_label zeichnet ein Bitmap pro Text statt einer Kachel pro Buchstabe – deutlich schneller.
+# Bei BDF-Schriften hält es aber die Schrifthöhe für die Oberlänge und zentriert auf einen vom Text
+# abhängigen Kasten: Texte rutschten 6–9 Pixel nach unten. Mit Anker oben (y = 0) liegt die Schrift
+# dagegen immer gleich; diese Tabelle rechnet darauf um, sodass alles wie mit label.Label sitzt.
+# Werte je Schrift: (Höhe der Großbuchstaben, Abstand Ankerpunkt -> Oberkante Großbuchstaben)
+KORREKTUR = {id(FONT_MENU): (9, 8), id(FONT_GROSS): (13, 9)}
+_anker_y = {}
+
+
+def _y_korrigiert(font, ay, y):
+    k = KORREKTUR.get(id(font))
+    if k is None:
+        return y
+    return y - int(ay * k[0]) - k[1]
+
+
 def text(font, t, anker, pos, farbe=WEISS):
-    # bitmap_label: ein Bitmap pro Text statt einer Kachel pro Buchstabe – deutlich schneller
-    return bitmap_label.Label(font, text=t, color=farbe, anchor_point=anker, anchored_position=pos)
+    ax, ay = anker
+    bdf = id(font) in KORREKTUR
+    lbl = bitmap_label.Label(font, text=t, color=farbe, anchor_point=(ax, 0) if bdf else anker,
+                             anchored_position=(pos[0], _y_korrigiert(font, ay, pos[1])))
+    _anker_y[id(lbl)] = (ay, pos[1])
+    return lbl
+
+
+def platzieren(lbl, x, y):
+    """Wie anchored_position = (x, y), aber mit der Korrektur für BDF-Schriften."""
+    ay = _anker_y[id(lbl)][0]
+    _anker_y[id(lbl)] = (ay, y)
+    lbl.anchored_position = (x, _y_korrigiert(lbl.font, ay, y))
+
+
+def schrift_setzen(lbl, font, t):
+    """Schrift und Text ändern; die Höhe wird für die neue Schrift neu berechnet."""
+    if lbl.font is not font:
+        lbl.font = font
+        ay, y = _anker_y[id(lbl)]
+        lbl.anchored_position = (lbl.anchored_position[0], _y_korrigiert(font, ay, y))
+    if lbl.text != t:
+        lbl.text = t
 
 
 # --- Startbild ---
@@ -348,10 +385,10 @@ def start_animation():
         p = max(0.0, min(1.0, (t - 0.35) / 0.6))
         p = 1 - (1 - p) ** 3
         x = int(128 - p * (128 - 50))
-        t_gross.anchored_position = (x, 20)
+        platzieren(t_gross, x, 20)
         p2 = max(0.0, min(1.0, (t - 0.5) / 0.6))
         p2 = 1 - (1 - p2) ** 3
-        t_klein.anchored_position = (int(128 - p2 * (128 - 50)), 42)
+        platzieren(t_klein, int(128 - p2 * (128 - 50)), 42)
         t_ver.hidden = t < 1.0
         time.sleep(0.015)
     return time.monotonic()
@@ -456,11 +493,9 @@ def menue_zeichnen():
 
 
 def gross_setzen(lbl, t):
-    lbl.font = FONT_GROSS
-    lbl.text = t
+    schrift_setzen(lbl, FONT_GROSS, t)
     if lbl.bounding_box[2] > 124:
-        lbl.font = FONT_MENU
-        lbl.text = t
+        schrift_setzen(lbl, FONT_MENU, t)
 
 
 def start_zeichnen():
@@ -510,11 +545,9 @@ def overlay_zeigen(i):
         return
     ov_name.text = namen[i]
     if i == 2 and gesperrt:
-        ov_wert.font = FONT_MENU
-        ov_wert.text = "ganz runter!"
+        schrift_setzen(ov_wert, FONT_MENU, "ganz runter!")
     else:
-        ov_wert.font = FONT_GROSS
-        ov_wert.text = "%d %%" % ((fader[i].wert + 5) // 10)
+        schrift_setzen(ov_wert, FONT_GROSS, "%d %%" % ((fader[i].wert + 5) // 10))
     ov_fuell.width = max(1, fader[i].wert * 116 // 1000)
     overlay_bis = time.monotonic() + OVERLAY_SEK
     if display.root_group is not overlay:
