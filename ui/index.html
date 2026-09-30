@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pico Dashboard</title>
+<title>MakerDash</title>
 <style>
 :root{
   --bg:#0b0d12; --panel:#0f1218; --card:#141821; --card2:#1a1f2a; --line:#232a37; --line2:#2d3545;
@@ -106,10 +106,10 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;b
 @keyframes rot{to{transform:rotate(360deg)}}
 
 /* ---------- Übersicht ---------- */
-.hero{display:grid;grid-template-columns:1.15fr 1fr;gap:22px;align-items:center;padding:22px;position:relative;overflow:hidden}
+.hero{display:grid;grid-template-columns:minmax(0,.8fr) 1fr;gap:22px;align-items:center;padding:22px;position:relative;overflow:hidden}
 .hero::before{content:"";position:absolute;inset:-40% -10% auto auto;width:520px;height:520px;background:radial-gradient(closest-side,rgba(124,92,255,.18),transparent);pointer-events:none}
 .hero::after{content:"";position:absolute;inset:auto auto -50% -10%;width:460px;height:460px;background:radial-gradient(closest-side,rgba(34,211,238,.10),transparent);pointer-events:none}
-.devsvg{width:100%;max-width:470px;filter:drop-shadow(0 18px 30px rgba(0,0,0,.45))}
+.devsvg{display:block;margin:0 auto;height:430px;max-width:100%;filter:drop-shadow(0 18px 30px rgba(0,0,0,.45))}
 .devsvg .knob{transition:transform .12s linear}
 .stat h2{margin:0 0 10px;font-size:22px;font-weight:650}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;margin-top:16px;font-size:13.5px}
@@ -203,7 +203,7 @@ kbd{background:#222838;border:1px solid var(--line2);border-bottom-width:2px;bor
   <aside class="side">
     <div class="brand">
       <div class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M6 4v16M12 4v16M18 4v16"/><rect x="3.5" y="12" width="5" height="3.2" rx="1.2" fill="#fff" stroke="none"/><rect x="9.5" y="6.5" width="5" height="3.2" rx="1.2" fill="#fff" stroke="none"/><rect x="15.5" y="10" width="5" height="3.2" rx="1.2" fill="#fff" stroke="none"/></svg></div>
-      <div><b>Pico Dashboard</b><small id="verSide">Version –</small></div>
+      <div><b>MakerDash</b><small id="verSide">Version –</small></div>
     </div>
     <nav class="nav" id="nav">
       <button data-p="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Übersicht</button>
@@ -225,7 +225,7 @@ kbd{background:#222838;border:1px solid var(--line2);border-bottom-width:2px;bor
         <div id="devArt"></div>
         <div class="stat">
           <div id="heroBadge"></div>
-          <h2 id="heroTitle">Pico Dashboard</h2>
+          <h2 id="heroTitle">MakerDash</h2>
           <div class="muted" id="heroSub"></div>
           <div class="kv" id="heroKV"></div>
           <div id="heroAct" class="mt"></div>
@@ -258,7 +258,7 @@ kbd{background:#222838;border:1px solid var(--line2);border-bottom-width:2px;bor
       <div class="card">
         <h3>Anzeige</h3><p class="sub">Änderungen werden sofort übernommen</p>
         <div class="row"><div class="lbl"><b>Helligkeit</b><small>Helligkeit des OLED-Displays</small></div><span class="muted" id="brV" style="width:44px;text-align:right"></span><input type="range" id="br" min="5" max="100" step="5"></div>
-        <div class="row"><div class="lbl"><b>Bildschirmschoner</b><small>Display dimmt und schaltet sich ab, wenn nichts passiert – schützt vor Einbrennen</small></div><div class="sel"><select id="saver"><option value="0">Aus</option><option value="60">Nach 1 Minute</option><option value="300">Nach 5 Minuten</option><option value="600">Nach 10 Minuten</option><option value="1800">Nach 30 Minuten</option><option value="3600">Nach 1 Stunde</option></select></div></div>
+        <div class="row"><div class="lbl"><b>Bildschirmschoner</b><small>Zeigt ein gedimmtes, wanderndes Logo, wenn nichts passiert – schützt vor Einbrennen</small></div><div class="sel"><select id="saver"><option value="0">Aus</option><option value="60">Nach 1 Minute</option><option value="300">Nach 5 Minuten</option><option value="600">Nach 10 Minuten</option><option value="1800">Nach 30 Minuten</option><option value="3600">Nach 1 Stunde</option></select></div></div>
         <div class="row"><div class="lbl"><b>Lautstärke-Anzeige</b><small>Beim Bewegen eines Faders kurz Name und Prozent einblenden</small></div><label class="tg"><input type="checkbox" id="ov"><span></span></label></div>
         <div class="row"><div class="lbl"><b>Start-Animation</b><small>Logo beim Einschalten des Dashboards</small></div><label class="tg"><input type="checkbox" id="anim"><span></span></label></div>
       </div>
@@ -290,7 +290,7 @@ kbd{background:#222838;border:1px solid var(--line2);border-bottom-width:2px;bor
 
     <!-- Updates -->
     <section class="page" id="p-updates">
-      <div class="head"><div><h1>Updates</h1><p>Pico Dashboard und die Dashboard-Firmware aktuell halten</p></div><button class="btn" id="chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></svg>Nach Updates suchen</button></div>
+      <div class="head"><div><h1>Updates</h1><p>MakerDash und die Dashboard-Firmware aktuell halten</p></div><button class="btn" id="chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></svg>Nach Updates suchen</button></div>
       <div class="card" id="updCard"></div>
       <div class="card mt">
         <div class="row"><div class="lbl"><b>Automatisch nach Updates suchen</b><small>Beim Start und alle 6 Stunden – du wirst benachrichtigt, installiert wird erst nach deiner Bestätigung</small></div><label class="tg"><input type="checkbox" id="autoUpd"><span></span></label></div>
@@ -303,14 +303,14 @@ kbd{background:#222838;border:1px solid var(--line2);border-bottom-width:2px;bor
       <div class="head"><div><h1>Einstellungen</h1><p>Allgemeines und Fehlersuche</p></div></div>
       <div class="card">
         <h3>Allgemein</h3>
-        <div class="row"><div class="lbl"><b>Mit Windows starten</b><small>Pico Dashboard läuft unauffällig im Infobereich</small></div><label class="tg"><input type="checkbox" id="auto"><span></span></label></div>
+        <div class="row"><div class="lbl"><b>Mit Windows starten</b><small>MakerDash läuft unauffällig im Infobereich</small></div><label class="tg"><input type="checkbox" id="auto"><span></span></label></div>
         <div class="row"><div class="lbl"><b>Verbindung</b><small>Normalerweise automatisch – nur ändern, wenn das Dashboard nicht gefunden wird</small></div><input class="inp" id="port" style="width:160px" placeholder="Automatisch"></div>
       </div>
       <div class="card mt">
         <h3>Hilfe</h3>
         <div class="row"><div class="lbl"><b>Einrichtung erneut starten</b><small>Führt noch einmal durch Anschließen und Test der Fader</small></div><button class="btn small" id="reSetup">Starten</button></div>
         <div class="row"><div class="lbl"><b>Protokolle</b><small>Log-Datei und Einstellungen im Explorer öffnen</small></div><button class="btn small" id="logs">Ordner öffnen</button></div>
-        <div class="row"><div class="lbl"><b>Pico Dashboard beenden</b><small>Das Dashboard steuert danach nichts mehr</small></div><button class="btn small" id="quit">Beenden</button></div>
+        <div class="row"><div class="lbl"><b>MakerDash beenden</b><small>Das Dashboard steuert danach nichts mehr</small></div><button class="btn small" id="quit">Beenden</button></div>
       </div>
       <p class="dim mt" id="about" style="font-size:12px"></p>
     </section>
@@ -403,36 +403,60 @@ function toast(kind, text) {
 }
 
 // ---------- Geräte-Grafik ----------
+// Maße aus der Frontplatten-Zeichnung "MakerDashFrontPanel" (Einheiten wie im PDF, Ursprung = Plattenecke)
+const PANEL = {w: 284, h: 507, faderX: [71, 141.8, 212.6], slotTop: 179, slotBot: 363.4, enc: [141.8, 428.6]};
+const SLOT_LEN = PANEL.slotBot - PANEL.slotTop;
+const knobY = v => PANEL.slotBot - 8 - (v / 1000) * (SLOT_LEN - 16);
 function deviceArt() {
   const on = S && S.conn.connected;
   const f3 = S ? S.f3 : "-";
   const od = S ? (S.outputs.find(o => o.isDefault) || {}) : {};
   const out = od.alias || od.name || "";
-  const knob = (i, x) => { const v = LV[i] < 0 ? 500 : LV[i]; const y = 176 - v / 1000 * 118; return `<g class="knob" id="kn${i}" style="transform:translateY(${y}px)"><rect x="${x-17}" y="-9" width="34" height="18" rx="5" fill="#f3f5fb"/><rect x="${x-11}" y="-1" width="22" height="2" rx="1" fill="#9aa3b5"/></g>`; };
-  const glow = (i, x) => { const v = LV[i] < 0 ? 500 : LV[i]; const h = v / 1000 * 118; return `<rect id="gl${i}" x="${x-2}" y="${176-h}" width="4" height="${h}" rx="2" fill="url(#gl)" opacity="${on?1:.35}"/>`; };
-  const trunc = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
-  return `<svg class="devsvg" viewBox="0 0 470 240" xmlns="http://www.w3.org/2000/svg">
+  const lv = i => LV[i] < 0 ? 500 : LV[i];
+  const font = 'font-family="Segoe UI Variable Text,Segoe UI,Arial,sans-serif"';
+  const screw = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#0f1219" stroke="#3a4254" stroke-width="1"/><path d="M${x-r*.55} ${y}h${r*1.1}M${x} ${y-r*.55}v${r*1.1}" stroke="#4a5367" stroke-width="1.2" stroke-linecap="round"/>`;
+  const trunc = (t, n) => t.length > n ? t.slice(0, n - 1) + "…" : t;
+  const fader = (i) => {
+    const x = PANEL.faderX[i], ky = knobY(lv(i)), h = PANEL.slotBot - 6 - ky;
+    return `${screw(x, 170.5, 4.2)}${screw(x, 371.9, 4.2)}
+    <rect x="${x-4}" y="${PANEL.slotTop}" width="8" height="${SLOT_LEN}" rx="4" fill="#07090d" stroke="#2a3140"/>
+    <rect id="gl${i}" x="${x-1.6}" y="${ky}" width="3.2" height="${Math.max(0, h)}" rx="1.6" fill="url(#gl)" opacity="${on?1:.35}"/>
+    <g class="knob" id="kn${i}" style="transform:translateY(${ky}px)"><rect x="${x-17}" y="-10" width="34" height="20" rx="5" fill="url(#cap)" stroke="#c9cedb" stroke-width=".8"/><rect x="${x-12}" y="-1" width="24" height="2" rx="1" fill="#8a93a7"/></g>
+    <text x="${x}" y="394" fill="#6b7489" font-size="11" text-anchor="middle" ${font}>F${i+1}</text>`;
+  };
+  // OLED: Fensterausschnitt 70×48, darin die aktive Fläche im Format 2:1
+  const ox = 109.8, oy = 91.2, ow = 64, oh = 32;
+  const screen = on ? `<text x="${ox+2}" y="${oy+6.5}" fill="#d8dce6" font-size="5.2" font-family="Consolas,monospace">Fader 3</text>
+    <text x="${ox+2}" y="${oy+18}" fill="#fff" font-size="9.5" font-weight="700" ${font}>${esc(trunc(f3, 11))}</text>
+    <rect x="${ox+2}" y="${oy+22}" width="${ow-4}" height=".6" fill="#fff" opacity=".8"/>
+    <text x="${ox+2}" y="${oy+29.5}" fill="#fff" font-size="5.6" ${font}>🔈 ${esc(trunc(out, 18))}</text>`
+    : `<text x="${ox+ow/2}" y="${oy+oh/2+2}" fill="#39414f" font-size="5.5" text-anchor="middle" ${font}>nicht verbunden</text>`;
+  return `<svg class="devsvg" viewBox="-6 -6 296 519" xmlns="http://www.w3.org/2000/svg">
   <defs><linearGradient id="body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#252b39"/><stop offset="1" stop-color="#171b25"/></linearGradient>
   <linearGradient id="gl" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
-  <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs>
-  <rect x="6" y="14" width="458" height="214" rx="26" fill="url(#body)" stroke="#303849"/>
-  <rect x="40" y="14" width="390" height="2.5" rx="1.2" fill="url(#edge)" opacity="${on?.9:.25}"/>
-  ${[0,1,2].map(i => { const x = 62 + i * 58; return `<rect x="${x-3}" y="52" width="6" height="130" rx="3" fill="#0d1017"/>${glow(i,x)}${knob(i,x)}<text x="${x}" y="206" fill="#6b7489" font-size="11" text-anchor="middle" font-family="Segoe UI Variable Text,Segoe UI,Arial,sans-serif">F${i+1}</text>`; }).join("")}
-  <rect x="236" y="46" width="200" height="104" rx="10" fill="#05070b" stroke="#2b3242"/>
-  <rect x="244" y="54" width="184" height="88" rx="4" fill="#000"/>
-  ${on ? `<text x="252" y="70" fill="#d8dce6" font-size="10" font-family="Consolas,monospace">Fader 3</text>
-  <text x="252" y="100" fill="#fff" font-size="21" font-weight="700" font-family="Segoe UI Variable Text,Segoe UI,Arial,sans-serif">${esc(trunc(f3, 13))}</text>
-  <rect x="252" y="112" width="168" height="1" fill="#fff" opacity=".8"/>
-  <text x="252" y="131" fill="#fff" font-size="12" font-family="Segoe UI Variable Text,Segoe UI,Arial,sans-serif">🔈 ${esc(trunc(out, 20))}</text>`
-  : `<text x="336" y="104" fill="#39414f" font-size="12" text-anchor="middle" font-family="Segoe UI Variable Text,Segoe UI,Arial,sans-serif">nicht verbunden</text>`}
-  <circle cx="336" cy="190" r="24" fill="#10131a" stroke="#343c4d"/><circle cx="336" cy="190" r="17" fill="#1d2230"/><rect x="334.5" y="175" width="3" height="9" rx="1.5" fill="#8b93a7"/>
+  <linearGradient id="cap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dfe3ec"/></linearGradient>
+  <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
+  <radialGradient id="encg" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#2b3142"/><stop offset="1" stop-color="#141821"/></radialGradient></defs>
+  <rect x="0" y="0" width="${PANEL.w}" height="${PANEL.h}" rx="18" fill="url(#body)" stroke="#303849"/>
+  <rect x="40" y="0" width="${PANEL.w-80}" height="2.5" rx="1.2" fill="url(#edge)" opacity="${on?.9:.25}"/>
+  ${screw(35.5, 45.9, 7.5)}${screw(248.1, 45.9, 7.5)}${screw(35.5, 485.2, 7.5)}${screw(248.1, 485.2, 7.5)}
+  <rect x="100" y="70" width="83.6" height="76.4" rx="4" fill="#0b0e14" stroke="#2b3242"/>
+  ${screw(110.7, 77, 2.6)}${screw(173, 77, 2.6)}${screw(110.7, 139.4, 2.6)}${screw(173, 139.4, 2.6)}
+  <rect x="106.6" y="84.3" width="70.4" height="47.9" rx="2" fill="#05070b" stroke="#343c4d"/>
+  <rect x="${ox}" y="${oy}" width="${ow}" height="${oh}" fill="#000"/>
+  ${screen}
+  ${[0,1,2].map(fader).join("")}
+  <circle cx="${PANEL.enc[0]}" cy="${PANEL.enc[1]}" r="25" fill="#0d1017" stroke="#343c4d"/>
+  <circle cx="${PANEL.enc[0]}" cy="${PANEL.enc[1]}" r="19" fill="url(#encg)" stroke="#3a4254"/>
+  <rect x="${PANEL.enc[0]-1.5}" y="${PANEL.enc[1]-17}" width="3" height="9" rx="1.5" fill="#8b93a7"/>
+  <text x="${PANEL.w/2}" y="${PANEL.h-14}" fill="#4a5367" font-size="10" font-weight="600" letter-spacing="2" text-anchor="middle" ${font}>MAKERDASH</text>
   </svg>`;
 }
 function updateKnobs() {
   for (let i = 0; i < 3; i++) {
-    const v = LV[i] < 0 ? 500 : LV[i];
-    const k = document.getElementById("kn" + i); if (k) k.style.transform = `translateY(${176 - v / 1000 * 118}px)`;
-    const g = document.getElementById("gl" + i); if (g) { const h = v / 1000 * 118; g.setAttribute("y", 176 - h); g.setAttribute("height", h); }
+    const v = LV[i] < 0 ? 500 : LV[i], ky = knobY(v);
+    const k = document.getElementById("kn" + i); if (k) k.style.transform = `translateY(${ky}px)`;
+    const g = document.getElementById("gl" + i); if (g) { g.setAttribute("y", ky); g.setAttribute("height", Math.max(0, PANEL.slotBot - 6 - ky)); }
     const p = document.getElementById("fp" + i); if (p) p.innerHTML = pct(LV[i]) + (LV[i] < 0 ? "" : "<small>%</small>");
     const b = document.getElementById("fb" + i); if (b) b.style.width = (LV[i] < 0 ? 0 : LV[i] / 10) + "%";
     const w = document.getElementById("wf" + i); if (w) { w.style.width = (LV[i] < 0 ? 0 : LV[i] / 10) + "%"; }
@@ -614,7 +638,7 @@ $("#autoFw").addEventListener("change", e => send("setAutoFirmware", {on: e.targ
 function renderUpdates() {
   const u = S.update;
   $("#updDot").hidden = u.state !== "available";
-  let icon = ICON.check, title = "Du bist auf dem neuesten Stand", sub = `Pico Dashboard ${esc(u.current)}`, body = "";
+  let icon = ICON.check, title = "Du bist auf dem neuesten Stand", sub = `MakerDash ${esc(u.current)}`, body = "";
   switch (u.state) {
     case "disabled": icon = ICON.info; title = "Updates noch nicht eingerichtet"; sub = "Trage unten das GitHub-Repository ein, aus dem Updates kommen."; break;
     case "idle": icon = ICON.info; title = "Noch nicht geprüft"; break;
@@ -642,7 +666,7 @@ $("#repo").addEventListener("change", e => send("setUpdateRepo", {value: e.targe
 function renderSettings() {
   $("#auto").checked = S.config.autostart;
   if (document.activeElement !== $("#port")) $("#port").value = S.config.port || "";
-  $("#about").textContent = `Pico Dashboard ${S.app.version} · Firmware ${S.firmware.bundled} · CircuitPython ${S.cpVersion}`;
+  $("#about").textContent = `MakerDash ${S.app.version} · Firmware ${S.firmware.bundled} · CircuitPython ${S.cpVersion}`;
 }
 $("#auto").addEventListener("change", e => send("setAutostart", {on: e.target.checked}));
 $("#port").addEventListener("change", e => send("setPort", {value: e.target.value}));
@@ -664,7 +688,7 @@ function renderWizard() {
   const c = S.conn, f = S.firmware, st = S.setup, dr = S.drives;
   let html = "", next = "Weiter", nextOk = true;
   if (wizStep === 0) {
-    html = `<h2>Willkommen bei Pico Dashboard</h2><p>In wenigen Schritten ist dein Dashboard einsatzbereit. Die App kümmert sich um alles – auch um die Software auf dem Pico. Du musst keine Dateien kopieren.</p>
+    html = `<h2>Willkommen bei MakerDash</h2><p>In wenigen Schritten ist dein Dashboard einsatzbereit. Die App kümmert sich um alles – auch um die Software auf dem Pico. Du musst keine Dateien kopieren.</p>
       <div class="wstate"><div class="ic" style="background:var(--grad)">${ICON.spark.replace('stroke="currentColor"','stroke="#fff"')}</div><div><b>Was passiert?</b><small>Dashboard anschließen · Software wird automatisch installiert · Fader testen</small></div></div>`;
     next = "Los geht’s";
   } else if (wizStep === 1) {
@@ -698,7 +722,7 @@ function renderWizard() {
       <div class="wf">${[0,1,2].map(i => `<div><b>Fader ${i+1}</b><div class="bar"><i id="wf${i}" style="width:${LV[i] < 0 ? 0 : LV[i]/10}%;transition:width .08s linear"></i></div></div>`).join("")}</div>`;
     next = "Weiter";
   } else if (wizStep === 3) {
-    html = `<h2>Fertig!</h2><p>Dein Dashboard ist eingerichtet. Pico Dashboard läuft ab jetzt im Infobereich unten rechts – ein Klick auf das Symbol öffnet dieses Fenster.</p>
+    html = `<h2>Fertig!</h2><p>Dein Dashboard ist eingerichtet. MakerDash läuft ab jetzt im Infobereich unten rechts – ein Klick auf das Symbol öffnet dieses Fenster.</p>
       <div class="wstate"><div class="ic" style="color:var(--accent2)">${ICON.info}</div><div style="flex:1"><b>Mit Windows starten</b><small>Empfohlen, damit die Fader immer funktionieren</small></div>${toggle('id="wAuto"', S.config.autostart)}</div>`;
     next = "Fertig";
   }
@@ -766,7 +790,7 @@ if (!hasBridge) {
     inputs: [{key: "i1", name: "Mikrofon", full: "Mikrofon (Shure MV7)", alias: "MV7", hidden: false, active: true, isDefault: true}, {key: "i2", name: "Headset-Mikrofon", full: "Headset-Mikrofon (Arctis Nova 7)", alias: "", hidden: false, active: true}],
     config: {fader1: "master", fader2: "mic", hardware: {fader1: "GP28", fader2: "GP27", fader3: "GP26", invert: "000", encA: "GP10", encB: "GP11", encSW: "GP12", encDivisor: 4, encReverse: false, sda: "GP4", scl: "GP5"},
              display: {brightness: 80, saver: 300, overlay: true, animation: true}, autostart: true, autoUpdate: true, autoFirmware: true, port: "", setupDone: true, updateRepo: ""},
-    update: {state: "available", current: "2.0.0", latest: "2.1.0", notes: "## Neu\n- **Mute** per Langdruck\n- Schnellere Verbindung\n\n## Behoben\n- Umlaute in Gerätenamen", progress: 0, error: "", lastCheck: "30.09.2026 13:05", repo: "johannes/pico-dashboard", url: "https://github.com/johannes/pico-dashboard/releases"},
+    update: {state: "available", current: "2.0.0", latest: "2.1.0", notes: "## Neu\n- **Mute** per Langdruck\n- Schnellere Verbindung\n\n## Behoben\n- Umlaute in Gerätenamen", progress: 0, error: "", lastCheck: "30.09.2026 13:05", repo: "JohannesJulius/makerdash", url: "https://github.com/JohannesJulius/makerdash/releases"},
     pins: Array.from({length: 23}, (_, i) => "GP" + i).concat(["GP26", "GP27", "GP28"]),
   };
   window.__demo = demo;

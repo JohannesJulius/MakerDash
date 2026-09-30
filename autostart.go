@@ -10,7 +10,7 @@ import (
 )
 
 const runKey = `Software\Microsoft\Windows\CurrentVersion\Run`
-const runName = "PicoDashboard"
+const runName = "MakerDash"
 
 func exePath() string {
 	p, err := os.Executable()

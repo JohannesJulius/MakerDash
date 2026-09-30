@@ -1,4 +1,4 @@
-# Pico Dashboard – boot.py
+# MakerDash – boot.py
 # Wird von der App verwaltet. Läuft nur beim Einstecken bzw. nach einem Reset.
 
 import supervisor
@@ -8,7 +8,7 @@ import usb_hid
 
 # Unter diesem Namen erscheint das Gerät in Windows
 try:
-    supervisor.set_usb_identification(manufacturer="DIY", product="Pico Dashboard")
+    supervisor.set_usb_identification(manufacturer="DIY", product="MakerDash")
 except Exception:
     pass
 

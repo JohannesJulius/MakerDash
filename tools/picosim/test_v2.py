@@ -24,10 +24,11 @@ def steps():
     fader("GP26", 0.35); yield 0.4; shot("7 gesperrt: Overlay 'ganz runter'")
     fader("GP26", 0.0); yield 0.5; shot("8 entsperrt")
     yield 2.2
-    yield 15.5; shot("9 gedimmt")
-    yield 5; shot("10 Bildschirm aus")
+    yield 20.5; shot("9 Schoner")
+    yield 3; shot("10 Schoner, 3 s spaeter")
     press(); yield 0.2; shot("11 geweckt (Druck verschluckt)")
-    pc("UPDATING"); pc("PROGRESS\t60"); yield 0.2; shot("12 Update 60%")
+    press(); yield 0.1; turn(2); yield 0.1; shot("12 Menue")
+    pc("UPDATING"); pc("PROGRESS\t60"); yield 0.2; shot("13 Update 60%")
     pc("REBOOT"); yield 1
     raise Stop
 

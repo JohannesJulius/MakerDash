@@ -23,10 +23,10 @@ jobs:
         run: |
           mkdir -p dist
           go vet ./... || true
-          go build -trimpath -ldflags "-H windowsgui -s -w -X main.AppVersion=0.0.0-test -X main.UpdateRepo=${{ github.repository }}" -o dist/PicoDashboard.exe .
+          go build -trimpath -ldflags "-H windowsgui -s -w -X main.AppVersion=0.0.0-test -X main.UpdateRepo=${{ github.repository }}" -o dist/MakerDash.exe .
       - working-directory: installer
         run: makensis -V2 -DVERSION=0.0.0 setup.nsi
       - uses: actions/upload-artifact@v4
         with:
-          name: PicoDashboard-test
+          name: MakerDash-test
           path: dist/

@@ -1,4 +1,6 @@
-# Pico Dashboard
+# MakerDash
+
+> Früher „Pico Dashboard“.
 
 Ein selbstgebautes Mischpult für den PC: drei Fader, ein Drehgeber und ein OLED-Display an einem
 Raspberry Pi Pico 2 steuern Systemlautstärke, Mikrofon und einzelne Programme unter Windows.
@@ -17,7 +19,7 @@ Raspberry Pi Pico 2 steuern Systemlautstärke, Mikrofon und einzelne Programme u
 
 ## Installation
 
-1. Neueste `PicoDashboard-Setup.exe` unter **Releases** herunterladen und starten.
+1. Neueste `MakerDash-Setup.exe` unter **Releases** herunterladen und starten.
 2. Der Einrichtungsassistent führt durch das Anschließen. Ein neuer Pico wird im BOOTSEL-Modus
    (Taste gedrückt halten und einstecken) erkannt und komplett eingerichtet.
 
@@ -61,8 +63,8 @@ aktualisiert die App danach auch das Dashboard.
 Lokal bauen (Linux oder Windows, Go ≥ 1.24):
 
 ```bash
-GOOS=windows GOARCH=amd64 go build -ldflags "-H windowsgui -X main.AppVersion=2.0.0" -o dist/PicoDashboard.exe .
-cd installer && makensis -DVERSION=2.0.0 setup.nsi
+GOOS=windows GOARCH=amd64 go build -ldflags "-H windowsgui -X main.AppVersion=2.1.0" -o dist/MakerDash.exe .
+cd installer && makensis -DVERSION=2.1.0 setup.nsi
 ```
 
 Die Bibliotheken in `firmware/lib` stammen von Adafruit (MIT-Lizenz).

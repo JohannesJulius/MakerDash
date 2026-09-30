@@ -18,7 +18,7 @@ sys.modules["time"] = tm
 board = types.ModuleType("board")
 for n in ["GP%d" % i for i in range(29)]: setattr(board, n, n)
 sys.modules["board"] = board
-busio = types.ModuleType("busio"); busio.I2C = lambda scl, sda: ("i2c", scl, sda); sys.modules["busio"] = busio
+busio = types.ModuleType("busio"); busio.I2C = lambda scl, sda, frequency=100000: ("i2c", scl, sda, frequency); sys.modules["busio"] = busio
 
 # ---------- analog ----------
 ADC = {}
@@ -74,6 +74,7 @@ class BDF:
                 cur["rows"] = rows; self.g[cur["c"]] = cur
             i += 1
     def width(self, s): return sum(self.g[ord(c)]["adv"] for c in s if ord(c) in self.g)
+    def load_glyphs(self, s): pass
     def draw(self, img, x, base, s, col):
         for ch in s:
             c = self.g.get(ord(ch))
@@ -94,13 +95,17 @@ class TermFont:  # Näherung der 6x12-Terminalschrift
         for i, ch in enumerate(s): d.text((x + 6 * i, base - 9), ch, fill=col, font=self.pil)
 terminalio = types.ModuleType("terminalio"); terminalio.FONT = TermFont(); sys.modules["terminalio"] = terminalio
 abf = types.ModuleType("adafruit_bitmap_font"); bfm = types.ModuleType("adafruit_bitmap_font.bitmap_font")
-bfm.load_font = lambda p: BDF(p.lstrip("/")); abf.bitmap_font = bfm
+import os.path as _p
+_FW = _p.join(_p.dirname(_p.abspath(__file__)), "..", "..", "firmware")
+bfm.load_font = lambda p: BDF(_p.join(_FW, p.lstrip("/"))); abf.bitmap_font = bfm
 sys.modules["adafruit_bitmap_font"] = abf; sys.modules["adafruit_bitmap_font.bitmap_font"] = bfm
 
 # ---------- displayio ----------
 dio = types.ModuleType("displayio")
 class Group(list):
     hidden = False
+    x = 0
+    y = 0
 dio.Group = Group
 class Bitmap:
     def __init__(self, w, h, n): self.w, self.h = w, h; self.d = {}
@@ -147,35 +152,39 @@ class Label:
     @property
     def bounding_box(self):
         return (0, 0, self.font.width(self.text), self.font.ascent + self.font.descent)
-lab.Label = Label; adt.label = lab
+lab.Label = Label; adt.label = lab; adt.bitmap_label = lab
 sys.modules["adafruit_display_text"] = adt; sys.modules["adafruit_display_text.label"] = lab
+sys.modules["adafruit_display_text.bitmap_label"] = lab
 
 def render(scale=4):
     img = Image.new("L", (128, 64), 0)
-    def walk(g):
+    def walk(g, ox=0, oy=0):
         if getattr(g, "hidden", False): return
+        ox += getattr(g, "x", 0); oy += getattr(g, "y", 0)
         for e in g:
-            if isinstance(e, list): walk(e); continue
+            if isinstance(e, list): walk(e, ox, oy); continue
             if e.hidden: continue
             if isinstance(e, TileGrid):
                 for yy in range(e.bmp.h):
                     for xx in range(e.bmp.w):
                         v = e.bmp[xx, yy]
                         if v in e.pal.transp: continue
-                        if e.pal[v] and 0 <= e.x+xx < 128 and 0 <= e.y+yy < 64: img.putpixel((e.x+xx, e.y+yy), 255)
+                        X, Y = ox+e.x+xx, oy+e.y+yy
+                        if e.pal[v] and 0 <= X < 128 and 0 <= Y < 64: img.putpixel((X, Y), 255)
             elif isinstance(e, Rectangle):
                 for yy in range(e.height):
                     for xx in range(e.width):
-                        if 0 <= e.x+xx < 128 and 0 <= e.y+yy < 64: img.putpixel((e.x+xx, e.y+yy), 255)
+                        X, Y = ox+e.x+xx, oy+e.y+yy
+                        if 0 <= X < 128 and 0 <= Y < 64: img.putpixel((X, Y), 255)
             elif isinstance(e, Label) and e.text:
                 w = e.font.width(e.text); h = e.font.ascent + e.font.descent
                 ax, ay = e.anchor_point; px, py = e.anchored_position
-                x0 = int(round(px - ax * w)); top = int(round(py - ay * h))
+                x0 = int(round(ox + px - ax * w)); top = int(round(oy + py - ay * h))
                 e.font.draw(img, x0, top + e.font.ascent - 1, e.text, 255 if e.color else 0)
     walk(DISPLAY["d"].root_group)
     d = DISPLAY["d"]
     if not d.awake: img = Image.new("L", (128, 64), 0)
-    elif d.brightness < 0.5: img = img.point(lambda p: p * 0.25)
+    elif d.brightness < 0.5: img = img.point(lambda p: p * 0.45)
     return img.resize((128 * scale, 64 * scale), Image.NEAREST)
 
 def run(code_path, scenario):

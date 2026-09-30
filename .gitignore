@@ -1,3 +1,6 @@
 dist/
 *.exe
 !installer/*.nsi
+tools/picosim/__pycache__/
+tools/picosim/*.png
+tools/uitest/*.png

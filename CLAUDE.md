@@ -1,6 +1,6 @@
-# Pico Dashboard – Projektkontext für Claude
+# MakerDash – Projektkontext für Claude
 
-DIY-Mischpult von Johannes: Raspberry Pi Pico 2 (CircuitPython 10) mit 3 Fadern, Drehgeber mit Taster
+DIY-Mischpult „MakerDash“ (bis 2.0.x „Pico Dashboard“) von Johannes: Raspberry Pi Pico 2 (CircuitPython 10) mit 3 Fadern, Drehgeber mit Taster
 und 0,96"-OLED (SSD1306) steuert Windows-Lautstärken. Sprache mit dem Nutzer: **Deutsch**.
 
 ## Aufbau
@@ -23,7 +23,7 @@ Die installierten Apps finden es selbst (auch über Rechtsklick aufs Tray-Symbol
 
 ## Bauen & Testen (Linux)
 ```bash
-GOOS=windows GOARCH=amd64 go build -ldflags "-H windowsgui -X main.AppVersion=0.0.0-dev" -o dist/PicoDashboard.exe .
+GOOS=windows GOARCH=amd64 go build -ldflags "-H windowsgui -X main.AppVersion=0.0.0-dev" -o dist/MakerDash.exe .
 GOOS=windows go test -c -o dist/apptest.exe . && wine dist/apptest.exe -test.v   # Tests unter Wine
 cd tools/uitest && python3 shots.py        # UI-Screenshots mit Playwright (Demo-Daten ohne Bridge)
 cd tools/picosim && python3 test_v2.py     # Firmware in simulierter CircuitPython-Umgebung, rendert OLED
@@ -37,6 +37,13 @@ simulierte Firmware über ein pty (socat) mit der echten .exe unter Wine.
 - 2.0.1: Fenster wird vor dem Einbetten angezeigt, `Show()` + `Resize()` danach, Log-Diagnose,
   Ausweichweg über Datei. **Auf echtem Windows bestätigt: App läuft (30.09.2026).**
 - Firmware 2.0.0 läuft bereits auf Johannes' Dashboard (automatisch von der App installiert).
+- 2.1.0: Umbenennung in MakerDash (`legacy.go` übernimmt %APPDATA%-Ordner und Autostart, der
+  Installer entfernt die alte Installation; Release enthält zusätzlich `PicoDashboard-Setup.exe`,
+  damit 2.0.x-Apps das Update finden). Firmware 2.1.0: wanderndes Logo als Bildschirmschoner,
+  schnelleres Menü (Glyphen vorladen, `bitmap_label`, I2C 400 kHz). Geräte-Grafik in der App nach
+  Johannes' Frontplatten-Zeichnung (hochkant). **Alles noch nicht auf echter Hardware geprüft.**
+- Repository soll `JohannesJulius/makerdash` heißen (Umbenennung macht Johannes auf GitHub;
+  GitHub leitet die alte Adresse weiter).
 - Noch ungetestet auf echter Hardware: Programmliste (Audio-Sitzungen), Standardgerät umschalten,
   Einrichtung eines neuen Pico im BOOTSEL-Modus.
-- Log beim Nutzer: `%APPDATA%\PicoDashboard\log.txt`; Diagnose-Start: `PicoDashboard.exe --open --debug`.
+- Log beim Nutzer: `%APPDATA%\MakerDash\log.txt`; Diagnose-Start: `MakerDash.exe --open --debug`.

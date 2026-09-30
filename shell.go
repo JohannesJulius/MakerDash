@@ -28,8 +28,8 @@ const (
 	wmAppTray     = wmApp + 2
 	wmAppShow     = wmApp + 3
 
-	msgClassName  = "PicoDashboardMsgWnd"
-	mainClassName = "PicoDashboardMainWnd"
+	msgClassName  = "MakerDashMsgWnd"
+	mainClassName = "MakerDashMainWnd"
 
 	menuOpen      = 1
 	menuUpdate    = 2
@@ -115,7 +115,7 @@ func createMsgWindow() error {
 	pRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
 	// Normales (unsichtbares) Top-Level-Fenster, damit es "TaskbarCreated" empfängt
 	h, _, err := pCreateWindowExW.Call(0, uintptr(unsafe.Pointer(u16(msgClassName))),
-		uintptr(unsafe.Pointer(u16("Pico Dashboard"))), 0, 0, 0, 0, 0, 0, 0, moduleHandle(), 0)
+		uintptr(unsafe.Pointer(u16("MakerDash"))), 0, 0, 0, 0, 0, 0, 0, moduleHandle(), 0)
 	if h == 0 {
 		return err
 	}
@@ -133,7 +133,7 @@ func trayAdd() {
 	n.uFlags = nifMessage | nifIcon | nifTip
 	n.uCallbackMessage = wmAppTray
 	n.hIcon = shell.iconTray
-	copyU16(n.szTip[:], "Pico Dashboard")
+	copyU16(n.szTip[:], "MakerDash")
 	pShellNotifyIconW.Call(nimAdd, uintptr(unsafe.Pointer(n)))
 }
 
@@ -179,7 +179,7 @@ func trayMenu() {
 	add := func(id int, text string, flags uint32) {
 		pAppendMenuW.Call(m, uintptr(flags), uintptr(id), uintptr(unsafe.Pointer(u16(text))))
 	}
-	add(menuOpen, "Pico Dashboard öffnen", mfString)
+	add(menuOpen, "MakerDash öffnen", mfString)
 	add(0, "", mfSeparator)
 	if u := updater.Snapshot(); u.State == "available" {
 		add(menuInstall, "Update auf "+u.Latest+" installieren", mfString)
@@ -300,7 +300,7 @@ func createMain() bool {
 	wc.cbSize = uint32(unsafe.Sizeof(wc))
 	pRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
 	h, _, err := pCreateWindowExW.Call(0, uintptr(unsafe.Pointer(u16(mainClassName))),
-		uintptr(unsafe.Pointer(u16("Pico Dashboard"))), wsOverlappedWindow,
+		uintptr(unsafe.Pointer(u16("MakerDash"))), wsOverlappedWindow,
 		cwUseDefault, cwUseDefault, 1180, 780, 0, 0, moduleHandle(), 0)
 	if h == 0 {
 		log.Println("CreateWindow:", err)
@@ -449,8 +449,8 @@ var pendingPage string
 
 func webviewMissing() {
 	const url = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
-	if messageBox(0, "Für die Oberfläche von Pico Dashboard wird die Microsoft WebView2 Runtime benötigt "+
-		"(bei Windows 11 normalerweise vorinstalliert).\n\nJetzt herunterladen?", "Pico Dashboard",
+	if messageBox(0, "Für die Oberfläche von MakerDash wird die Microsoft WebView2 Runtime benötigt "+
+		"(bei Windows 11 normalerweise vorinstalliert).\n\nJetzt herunterladen?", "MakerDash",
 		mbYesNo|mbIconWarning) == idYes {
 		exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
 	}

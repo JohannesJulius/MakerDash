@@ -106,7 +106,7 @@ func TestUpdater(t *testing.T) {
 	badSum := false
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/test/repo/releases/latest", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, `{"tag_name":"v9.1.0","body":"- Neu","html_url":"x","assets":[{"name":"PicoDashboard-Setup.exe","browser_download_url":"%s/setup"},{"name":"SHA256SUMS.txt","browser_download_url":"%s/sums"}]}`, base, base)
+		fmt.Fprintf(w, `{"tag_name":"v9.1.0","body":"- Neu","html_url":"x","assets":[{"name":"MakerDash-Setup.exe","browser_download_url":"%s/setup"},{"name":"SHA256SUMS.txt","browser_download_url":"%s/sums"}]}`, base, base)
 	})
 	mux.HandleFunc("/setup", func(w http.ResponseWriter, r *http.Request) { w.Write(setup) })
 	mux.HandleFunc("/sums", func(w http.ResponseWriter, r *http.Request) {
@@ -114,10 +114,10 @@ func TestUpdater(t *testing.T) {
 		if badSum {
 			h = strings.Repeat("0", 64)
 		}
-		fmt.Fprintf(w, "%s  PicoDashboard-Setup.exe\n", h)
+		fmt.Fprintf(w, "%s  MakerDash-Setup.exe\n", h)
 	})
 	go http.Serve(ln, mux)
-	os.Setenv("PICODASH_UPDATE_API", base)
+	os.Setenv("MAKERDASH_UPDATE_API", base)
 	UpdateRepo = "test/repo"
 	link = NewLinkDeferred()
 	_ = marker
@@ -144,9 +144,9 @@ func TestUpdater(t *testing.T) {
 	t.Logf("Updater-Endzustand: %s %s", s.State, s.Error)
 }
 
-// Echter Ablauf mit dem richtigen Installer (nur wenn PICODASH_REAL_SETUP gesetzt ist)
+// Echter Ablauf mit dem richtigen Installer (nur wenn MAKERDASH_REAL_SETUP gesetzt ist)
 func TestRealUpdate(t *testing.T) {
-	path := os.Getenv("PICODASH_REAL_SETUP")
+	path := os.Getenv("MAKERDASH_REAL_SETUP")
 	if path == "" {
 		t.Skip()
 	}
@@ -159,14 +159,14 @@ func TestRealUpdate(t *testing.T) {
 	base := "http://" + ln.Addr().String()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/real/repo/releases/latest", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, `{"tag_name":"v2.0.0","body":"echt","assets":[{"name":"PicoDashboard-Setup.exe","browser_download_url":"%s/setup"},{"name":"SHA256SUMS.txt","browser_download_url":"%s/sums"}]}`, base, base)
+		fmt.Fprintf(w, `{"tag_name":"v2.0.0","body":"echt","assets":[{"name":"MakerDash-Setup.exe","browser_download_url":"%s/setup"},{"name":"SHA256SUMS.txt","browser_download_url":"%s/sums"}]}`, base, base)
 	})
 	mux.HandleFunc("/setup", func(w http.ResponseWriter, r *http.Request) { w.Write(setup) })
 	mux.HandleFunc("/sums", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "%s  PicoDashboard-Setup.exe\n", hex.EncodeToString(sum[:]))
+		fmt.Fprintf(w, "%s  MakerDash-Setup.exe\n", hex.EncodeToString(sum[:]))
 	})
 	go http.Serve(ln, mux)
-	os.Setenv("PICODASH_UPDATE_API", base)
+	os.Setenv("MAKERDASH_UPDATE_API", base)
 	UpdateRepo = "real/repo"
 	AppVersion = "1.1.0"
 	link = NewLinkDeferred()

@@ -344,9 +344,9 @@ func onConnect(r Remote) {
 
 func onStatus(connected bool, port string) {
 	if connected {
-		setTrayTip("Pico Dashboard – verbunden (" + port + ")")
+		setTrayTip("MakerDash – verbunden (" + port + ")")
 	} else {
-		setTrayTip("Pico Dashboard – nicht verbunden")
+		setTrayTip("MakerDash – nicht verbunden")
 		firmware.OnDisconnect()
 	}
 	markDirty()
