@@ -35,7 +35,7 @@ simulierte Firmware über ein pty (socat) mit der echten .exe unter Wine.
 ## Stand (30.09.2026)
 - 2.0.0: Fenster blieb auf echtem Windows schwarz (WebView2 in verstecktes Fenster eingebettet).
 - 2.0.1: Fenster wird vor dem Einbetten angezeigt, `Show()` + `Resize()` danach, Log-Diagnose,
-  Ausweichweg über Datei. **Auf echtem Windows noch nicht bestätigt.**
+  Ausweichweg über Datei. **Auf echtem Windows bestätigt: App läuft (30.09.2026).**
 - Firmware 2.0.0 läuft bereits auf Johannes' Dashboard (automatisch von der App installiert).
 - Noch ungetestet auf echter Hardware: Programmliste (Audio-Sitzungen), Standardgerät umschalten,
   Einrichtung eines neuen Pico im BOOTSEL-Modus.
