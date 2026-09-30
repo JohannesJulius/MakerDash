@@ -4,3 +4,4 @@ dist/
 tools/picosim/__pycache__/
 tools/picosim/*.png
 tools/uitest/*.png
+__pycache__/
