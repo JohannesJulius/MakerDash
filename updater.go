@@ -28,7 +28,7 @@ import (
 // Werden beim Bauen gesetzt: -ldflags "-X main.AppVersion=1.2.3 -X main.UpdateRepo=user/repo"
 var (
 	AppVersion = "0.0.0-dev"
-	UpdateRepo = ""
+	UpdateRepo = "JohannesJulius/picodashboard"
 )
 
 const setupAsset = "PicoDashboard-Setup.exe"
