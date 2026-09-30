@@ -7,8 +7,13 @@ package main
 import (
 	_ "embed"
 	"log"
+	"net/url"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/jchv/go-webview2/pkg/edge"
@@ -30,6 +35,7 @@ const (
 	menuUpdate    = 2
 	menuAutostart = 3
 	menuQuit      = 4
+	menuInstall   = 5
 )
 
 var bgColor = rgb(0x0B, 0x0D, 0x12)
@@ -39,6 +45,7 @@ var shell struct {
 	mainHwnd       uintptr
 	chromium       *edge.Chromium
 	pageReady      bool
+	triedFile      bool
 	visible        bool
 	taskbarCreated uint32
 	iconSmall      uintptr
@@ -174,7 +181,11 @@ func trayMenu() {
 	}
 	add(menuOpen, "Pico Dashboard öffnen", mfString)
 	add(0, "", mfSeparator)
-	add(menuUpdate, "Nach Updates suchen", mfString)
+	if u := updater.Snapshot(); u.State == "available" {
+		add(menuInstall, "Update auf "+u.Latest+" installieren", mfString)
+	} else {
+		add(menuUpdate, "Nach Updates suchen", mfString)
+	}
 	var fl uint32 = mfString
 	if autostartEnabled() {
 		fl |= mfChecked
@@ -196,8 +207,9 @@ func trayMenu() {
 	case menuOpen:
 		showMain("")
 	case menuUpdate:
-		showMain("updates")
 		go updater.Check(true)
+	case menuInstall:
+		go updater.Install()
 	case menuAutostart:
 		setAutostart(!autostartEnabled())
 		markDirty()
@@ -254,6 +266,9 @@ func mainWndProc(hwnd, m, w, l uintptr) uintptr {
 	case wmClose:
 		pShowWindow.Call(hwnd, swHide)
 		shell.visible = false
+		if shell.chromium != nil {
+			shell.chromium.Hide()
+		}
 		return 0
 	case wmGetMinMaxInfo:
 		mm := (*minMaxInfo)(unsafe.Pointer(l))
@@ -308,10 +323,25 @@ func createMain() bool {
 	y := wa.top + (wa.bottom-wa.top-wh)/2
 	pSetWindowPos.Call(h, 0, uintptr(x), uintptr(y), uintptr(ww), uintptr(wh), 0x0014)
 
+	// WebView2 erst in ein sichtbares Fenster einbetten – in einem versteckten
+	// Fenster bleibt die Oberfläche sonst leer.
+	pShowWindow.Call(h, swShow)
+	pUpdateWindow.Call(h)
+	pSetForegroundWindow.Call(h)
+
 	c := edge.NewChromium()
 	c.DataPath = webviewDataDir()
 	c.MessageCallback = handleUIMessage
+	c.NavigationCompletedCallback = func(_ *edge.ICoreWebView2, args *edge.ICoreWebView2NavigationCompletedEventArgs) {
+		ok, status := navResult(args)
+		log.Printf("Oberfläche geladen: erfolgreich=%v status=%d", ok, status)
+		if !ok && !shell.triedFile {
+			loadUIFromFile()
+		}
+	}
+	log.Println("WebView2 wird erstellt …")
 	if !c.Embed(h) {
+		log.Println("WebView2 konnte nicht erstellt werden")
 		return false
 	}
 	shell.chromium = c
@@ -320,7 +350,10 @@ func createMain() bool {
 			c2.PutDefaultBackgroundColor(edge.COREWEBVIEW2_COLOR{A: 255, R: 0x0B, G: 0x0D, B: 0x12})
 		}
 	}
-	if s, err := c.GetSettings(); err == nil {
+	if s, err := c.GetSettings(); s != nil {
+		if err != nil && debugLog {
+			log.Println("GetSettings meldet:", err)
+		}
 		s.PutAreDefaultContextMenusEnabled(debugLog)
 		s.PutAreDevToolsEnabled(debugLog)
 		s.PutIsStatusBarEnabled(false)
@@ -329,9 +362,56 @@ func createMain() bool {
 		s.PutIsPinchZoomEnabled(false)
 		s.PutIsSwipeNavigationEnabled(false)
 	}
+	c.Show()
 	c.Resize()
+	c.NotifyParentWindowPositionChanged()
+	logBounds()
 	c.NavigateToString(indexHTML)
+	// Falls die Seite nicht meldet, dass sie bereit ist: aus einer Datei laden
+	go func() {
+		time.Sleep(6 * time.Second)
+		runOnUI(func() {
+			if !shell.pageReady && !shell.triedFile {
+				log.Println("Oberfläche meldet sich nicht – lade aus Datei")
+				loadUIFromFile()
+			}
+		})
+	}()
 	return true
+}
+
+// navResult liest IsSuccess und WebErrorStatus aus den Ereignisdaten.
+func navResult(args *edge.ICoreWebView2NavigationCompletedEventArgs) (bool, int32) {
+	if args == nil {
+		return false, -1
+	}
+	o := comObj(uintptr(unsafe.Pointer(args)))
+	ok := heap[int32]()
+	st := heap[int32]()
+	o.call(3, ptr(ok))
+	o.call(4, ptr(st))
+	return *ok != 0, *st
+}
+
+func logBounds() {
+	var r rect
+	pGetClientRect.Call(shell.mainHwnd, uintptr(unsafe.Pointer(&r)))
+	log.Printf("Fenster-Innenbereich: %dx%d", r.right-r.left, r.bottom-r.top)
+}
+
+// loadUIFromFile schreibt die Oberfläche in eine Datei und lädt sie von dort (Ausweichweg).
+func loadUIFromFile() {
+	shell.triedFile = true
+	dir := filepath.Join(filepath.Dir(webviewDataDir()), "ui")
+	os.MkdirAll(dir, 0o755)
+	p := filepath.Join(dir, "index.html")
+	if err := os.WriteFile(p, []byte(indexHTML), 0o644); err != nil {
+		log.Println("UI-Datei:", err)
+		return
+	}
+	u := (&url.URL{Scheme: "file", Path: "/" + strings.ReplaceAll(p, "\\", "/")}).String()
+	log.Println("Lade Oberfläche aus", u)
+	shell.chromium.Navigate(u)
 }
 
 // showMain öffnet das Hauptfenster (optional auf einer bestimmten Seite).
@@ -352,6 +432,10 @@ func showMain(page string) {
 		pShowWindow.Call(shell.mainHwnd, swShow)
 	}
 	pSetForegroundWindow.Call(shell.mainHwnd)
+	if shell.chromium != nil {
+		shell.chromium.Show()
+		shell.chromium.Resize()
+	}
 	shell.visible = true
 	if page != "" && shell.pageReady {
 		shell.chromium.Eval(`window.__app&&window.__app.go(` + jsString(page) + `)`)

@@ -225,7 +225,13 @@ func handleUIMessage(raw string) {
 		return // z. B. Echo einer eigenen Nachricht
 	}
 	switch m.Type {
+	case "log":
+		log.Println("Oberfläche:", m.Value)
+		return
 	case "ready":
+		if !shell.pageReady {
+			log.Println("Oberfläche bereit")
+		}
 		shell.pageReady = true
 		if pendingPage != "" {
 			shell.chromium.Eval(`window.__app&&window.__app.go(` + jsString(pendingPage) + `)`)

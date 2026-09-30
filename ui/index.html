@@ -332,6 +332,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const hasBridge = !!(window.chrome && window.chrome.webview);
+window.addEventListener("error", e => { try { window.chrome.webview.postMessage(JSON.stringify({type: "log", value: String(e.message) + " @" + e.lineno})); } catch (_) {} });
 const send = (type, data = {}) => { if (hasBridge) window.chrome.webview.postMessage(JSON.stringify({type, ...data})); else console.log("→", type, data); };
 
 const ICON = {

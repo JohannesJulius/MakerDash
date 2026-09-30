@@ -21,6 +21,8 @@ var (
 	pDefWindowProcW           = user32.NewProc("DefWindowProcW")
 	pShowWindow               = user32.NewProc("ShowWindow")
 	pDestroyWindow            = user32.NewProc("DestroyWindow")
+	pUpdateWindow             = user32.NewProc("UpdateWindow")
+	pGetClientRect            = user32.NewProc("GetClientRect")
 	pSetForegroundWindow      = user32.NewProc("SetForegroundWindow")
 	pGetMessageW              = user32.NewProc("GetMessageW")
 	pTranslateMessage         = user32.NewProc("TranslateMessage")
