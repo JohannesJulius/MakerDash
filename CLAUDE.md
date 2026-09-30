@@ -27,6 +27,7 @@ GOOS=windows GOARCH=amd64 go build -ldflags "-H windowsgui -X main.AppVersion=0.
 GOOS=windows go test -c -o dist/apptest.exe . && wine dist/apptest.exe -test.v   # Tests unter Wine
 cd tools/uitest && python3 shots.py        # UI-Screenshots mit Playwright (Demo-Daten ohne Bridge)
 cd tools/picosim && python3 test_v2.py     # Firmware in simulierter CircuitPython-Umgebung, rendert OLED
+python3 tools/picosim/test_labels.py       # Textpositionen mit echten Adafruit-Bibliotheken (Blinka)
 ```
 Wine kann WebView2, Audio-Sitzungen und das Umschalten des Standardgeräts (IPolicyConfig) NICHT
 nachbilden – das muss auf echtem Windows geprüft werden. `tools/picosim/e2e_fw.py` verbindet die
@@ -41,9 +42,13 @@ simulierte Firmware über ein pty (socat) mit der echten .exe unter Wine.
   Installer entfernt die alte Installation; Release enthält zusätzlich `PicoDashboard-Setup.exe`,
   damit 2.0.x-Apps das Update finden). Firmware 2.1.0: wanderndes Logo als Bildschirmschoner,
   schnelleres Menü (Glyphen vorladen, `bitmap_label`, I2C 400 kHz). Geräte-Grafik in der App nach
-  Johannes' Frontplatten-Zeichnung (hochkant). **Alles noch nicht auf echter Hardware geprüft.**
-- Repository soll `JohannesJulius/makerdash` heißen (Umbenennung macht Johannes auf GitHub;
-  GitHub leitet die alte Adresse weiter).
+  Johannes' Frontplatten-Zeichnung (hochkant). Update von 2.0.1 auf 2.1.0 hat bei Johannes geklappt.
+- 2.1.1: `bitmap_label` (adafruit_display_text 5.0.5) setzt BDF-Texte 6–9 px zu tief (nimmt die
+  Schrifthöhe als Oberlänge, zentriert auf textabhängigen Kasten). Firmware nutzt Anker y = 0 plus
+  Tabelle `KORREKTUR`; Schriftwechsel/Verschieben nur über `schrift_setzen`/`platzieren`.
+  Prüfung mit echten Bibliotheken: `python3 tools/picosim/test_labels.py`
+  (braucht `pip install adafruit-blinka-displayio`; `sim.py` bildet diesen Fehler NICHT ab).
+- Repository heißt jetzt `JohannesJulius/MakerDash` (alte Adresse wird weitergeleitet).
 - Noch ungetestet auf echter Hardware: Programmliste (Audio-Sitzungen), Standardgerät umschalten,
   Einrichtung eines neuen Pico im BOOTSEL-Modus.
 - Log beim Nutzer: `%APPDATA%\MakerDash\log.txt`; Diagnose-Start: `MakerDash.exe --open --debug`.
