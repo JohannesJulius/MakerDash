@@ -1,0 +1,778 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pico Dashboard</title>
+<style>
+:root{
+  --bg:#0b0d12; --panel:#0f1218; --card:#141821; --card2:#1a1f2a; --line:#232a37; --line2:#2d3545;
+  --text:#e9ecf4; --muted:#8b93a7; --dim:#5d6578;
+  --accent:#7c5cff; --accent2:#22d3ee; --ok:#34d399; --warn:#fbbf24; --err:#f87171;
+  --grad:linear-gradient(135deg,#7c5cff 0%,#22d3ee 100%);
+  --radius:14px; --shadow:0 10px 30px rgba(0,0,0,.35);
+  font-family:"Segoe UI Variable Text","Segoe UI Variable","Segoe UI",system-ui,-apple-system,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased;user-select:none;overflow:hidden}
+input,textarea{user-select:text}
+button,select,input{font:inherit;color:inherit}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#262d3b;border-radius:10px;border:3px solid var(--bg)}::-webkit-scrollbar-track{background:transparent}
+.app{display:grid;grid-template-columns:236px 1fr;height:100vh}
+
+/* ---------- Seitenleiste ---------- */
+.side{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:18px 14px}
+.brand{display:flex;align-items:center;gap:12px;padding:4px 8px 22px}
+.brand .logo{width:36px;height:36px;border-radius:10px;background:var(--grad);display:grid;place-items:center;box-shadow:0 6px 18px rgba(124,92,255,.35)}
+.brand b{font-size:15px;letter-spacing:.2px;display:block}
+.brand small{color:var(--muted);font-size:11.5px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{all:unset;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;color:var(--muted);cursor:pointer;font-weight:500;position:relative;transition:background .15s,color .15s}
+.nav button:hover{background:#161a23;color:var(--text)}
+.nav button.on{background:#1a1f2b;color:var(--text)}
+.nav button.on::before{content:"";position:absolute;left:-14px;top:9px;bottom:9px;width:3px;border-radius:3px;background:var(--grad)}
+.nav svg{width:18px;height:18px;flex:none}
+.nav .dot{margin-left:auto;width:8px;height:8px;border-radius:50%;background:var(--accent2);box-shadow:0 0 0 3px rgba(34,211,238,.15)}
+.side .grow{flex:1}
+.conn{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px;display:flex;gap:10px;align-items:center}
+.conn .led{width:10px;height:10px;border-radius:50%;background:var(--dim);flex:none}
+.conn.on .led{background:var(--ok);box-shadow:0 0 0 4px rgba(52,211,153,.15),0 0 12px rgba(52,211,153,.6)}
+.conn.busy .led{background:var(--warn);box-shadow:0 0 0 4px rgba(251,191,36,.15);animation:pulse 1.2s infinite}
+.conn b{display:block;font-size:13px}.conn small{color:var(--muted);font-size:11.5px}
+@keyframes pulse{50%{opacity:.4}}
+
+/* ---------- Inhalt ---------- */
+.main{overflow:auto;position:relative}
+.page{display:none;padding:30px 36px 48px;max-width:1080px;animation:fade .25s ease}
+.page.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;gap:16px}
+.head h1{margin:0;font-size:26px;font-weight:650;letter-spacing:-.2px;font-family:"Segoe UI Variable Display","Segoe UI",system-ui}
+.head p{margin:6px 0 0;color:var(--muted)}
+.grid{display:grid;gap:16px}
+.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px}
+.card h3{margin:0 0 4px;font-size:15px;font-weight:600}
+.card .sub{color:var(--muted);font-size:12.5px;margin:0 0 14px}
+.row{display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.row .lbl{flex:1;min-width:0}
+.row .lbl b{font-weight:550;display:block}
+.row .lbl small{color:var(--muted);font-size:12.5px;display:block;margin-top:2px}
+.muted{color:var(--muted)}.dim{color:var(--dim)}
+.mt{margin-top:16px}
+
+/* ---------- Steuerelemente ---------- */
+.btn{all:unset;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 16px;border-radius:10px;background:var(--card2);border:1px solid var(--line2);font-weight:550;cursor:pointer;transition:filter .15s,transform .05s,background .15s;white-space:nowrap}
+.btn:hover{background:#212736}.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--grad);border-color:transparent;color:#fff;box-shadow:0 6px 18px rgba(124,92,255,.3)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.small{height:30px;padding:0 12px;font-size:12.5px;border-radius:8px}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}.btn.ghost:hover{color:var(--text);background:#1a1f2a}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.btn svg{width:16px;height:16px}
+.sel{position:relative;display:inline-block;min-width:180px}
+.sel select{appearance:none;width:100%;height:36px;border-radius:10px;border:1px solid var(--line2);background:var(--card2);padding:0 34px 0 12px;cursor:pointer;outline:none}
+.sel select:focus{border-color:var(--accent)}
+.sel::after{content:"";position:absolute;right:13px;top:14px;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);pointer-events:none}
+.sel.bad select{border-color:var(--err)}
+option{background:#1a1f2a}
+.inp{height:34px;border-radius:9px;border:1px solid var(--line2);background:#10141b;padding:0 12px;outline:none;min-width:0}
+.inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,255,.18)}
+.inp::placeholder{color:var(--dim)}
+.tg{position:relative;width:42px;height:24px;flex:none;cursor:pointer}
+.tg input{display:none}
+.tg span{position:absolute;inset:0;border-radius:24px;background:#2a3140;transition:background .2s}
+.tg span::after{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#cfd5e2;transition:transform .2s cubic-bezier(.3,1.4,.6,1),background .2s}
+.tg input:checked+span{background:var(--accent)}
+.tg input:checked+span::after{transform:translateX(18px);background:#fff}
+.seg{display:inline-flex;background:#10141b;border:1px solid var(--line2);border-radius:10px;padding:3px;gap:2px}
+.seg button{all:unset;padding:6px 12px;border-radius:7px;color:var(--muted);cursor:pointer;font-weight:550;font-size:13px}
+.seg button.on{background:var(--card2);color:var(--text);box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 2px 6px rgba(0,0,0,.3)}
+input[type=range]{appearance:none;width:220px;height:6px;border-radius:6px;background:linear-gradient(90deg,var(--accent) var(--p,50%),#2a3140 var(--p,50%));outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.badge{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:20px;font-size:11.5px;font-weight:600;background:#1f2533;color:var(--muted)}
+.badge.ok{background:rgba(52,211,153,.12);color:var(--ok)}
+.badge.warn{background:rgba(251,191,36,.12);color:var(--warn)}
+.badge.err{background:rgba(248,113,113,.12);color:var(--err)}
+.badge.acc{background:rgba(124,92,255,.15);color:#b3a3ff}
+.badge .d{width:6px;height:6px;border-radius:50%;background:currentColor}
+.bar{height:8px;border-radius:8px;background:#222836;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--grad);border-radius:8px;transition:width .25s ease}
+.bar.indet i{width:35%!important;animation:indet 1.1s ease-in-out infinite}
+@keyframes indet{from{transform:translateX(-100%)}to{transform:translateX(290%)}}
+.spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:rot .8s linear infinite;display:inline-block}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* ---------- Übersicht ---------- */
+.hero{display:grid;grid-template-columns:1.15fr 1fr;gap:22px;align-items:center;padding:22px;position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:-40% -10% auto auto;width:520px;height:520px;background:radial-gradient(closest-side,rgba(124,92,255,.18),transparent);pointer-events:none}
+.hero::after{content:"";position:absolute;inset:auto auto -50% -10%;width:460px;height:460px;background:radial-gradient(closest-side,rgba(34,211,238,.10),transparent);pointer-events:none}
+.devsvg{width:100%;max-width:470px;filter:drop-shadow(0 18px 30px rgba(0,0,0,.45))}
+.devsvg .knob{transition:transform .12s linear}
+.stat h2{margin:0 0 10px;font-size:22px;font-weight:650}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;margin-top:16px;font-size:13.5px}
+.kv span{color:var(--muted)}
+.fader{position:relative;overflow:hidden}
+.fader .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;height:22px}
+.fader .num{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+.fader .pct{font-size:34px;font-weight:650;font-family:"Segoe UI Variable Display","Segoe UI",system-ui;letter-spacing:-.5px;margin:14px 0 10px;font-variant-numeric:tabular-nums}
+.fader .pct small{font-size:16px;color:var(--muted);margin-left:2px}
+.fader .sel{width:100%}
+.fader .bar{height:10px}
+.fader .bar i{transition:width .08s linear}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.quick .card{display:flex;align-items:center;gap:14px}
+.quick .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:#1c2230;flex:none}
+.quick .ic svg{width:20px;height:20px;color:var(--accent2)}
+.quick .sel{flex:1}
+
+/* ---------- Listen ---------- */
+.list .item{display:grid;grid-template-columns:38px 1fr 210px 54px 36px;align-items:center;gap:14px;padding:10px 6px;border-top:1px solid var(--line)}
+.list .item:first-child{border-top:0}
+.av{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-weight:700;font-size:15px;color:#fff}
+.item .nm{min-width:0}
+.item .nm b{display:block;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .nm small{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:12px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item.off .nm b,.item.off .av{opacity:.55}
+.live{width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block;box-shadow:0 0 8px rgba(52,211,153,.7)}
+.empty{padding:34px;text-align:center;color:var(--muted)}
+.empty svg{width:36px;height:36px;color:var(--dim);margin-bottom:10px}
+.toolbar{display:flex;gap:12px;align-items:center;margin-bottom:14px}
+.toolbar .inp{flex:1;max-width:320px;padding-left:36px;background:#10141b url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%235d6578' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='5'/%3E%3Cpath d='m11 11 3.5 3.5'/%3E%3C/svg%3E") 12px 50% no-repeat}
+.iconbtn{all:unset;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--dim);cursor:pointer}
+.iconbtn:hover{background:#1f2533;color:var(--text)}
+.iconbtn svg{width:16px;height:16px}
+
+/* ---------- Pins ---------- */
+.pins{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.pin label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:550}
+.pin .sel{width:100%;min-width:0}
+.pinfoot{display:flex;align-items:center;gap:12px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.warnbox{display:flex;gap:10px;align-items:flex-start;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);color:#f5d27a;border-radius:10px;padding:10px 12px;font-size:13px}
+.errbox{display:flex;gap:10px;align-items:flex-start;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.28);color:#fca5a5;border-radius:10px;padding:10px 12px;font-size:13px}
+.warnbox svg,.errbox svg{width:18px;height:18px;flex:none;margin-top:1px}
+
+/* ---------- Updates ---------- */
+.upd{display:flex;gap:18px;align-items:center}
+.upd .big{width:64px;height:64px;border-radius:18px;background:var(--grad);display:grid;place-items:center;flex:none;box-shadow:0 10px 24px rgba(124,92,255,.35)}
+.upd .big svg{width:30px;height:30px;color:#fff}
+.upd h2{margin:0;font-size:19px}
+.notes{background:#10141b;border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-top:16px;max-height:260px;overflow:auto;color:#c9cfdc;line-height:1.55}
+.notes h4{margin:10px 0 4px;color:var(--text)}.notes ul{margin:4px 0;padding-left:20px}.notes p{margin:6px 0}
+
+/* ---------- Toasts ---------- */
+.toasts{position:fixed;right:22px;bottom:22px;display:flex;flex-direction:column;gap:10px;z-index:50}
+.toast{display:flex;gap:10px;align-items:center;min-width:260px;max-width:420px;background:#1b2130;border:1px solid var(--line2);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow);animation:tin .25s ease}
+.toast svg{width:18px;height:18px;flex:none}
+.toast.ok svg{color:var(--ok)}.toast.error svg{color:var(--err)}.toast.info svg{color:var(--accent2)}
+.toast.out{animation:tout .25s ease forwards}
+@keyframes tin{from{opacity:0;transform:translateY(10px) scale(.98)}}
+@keyframes tout{to{opacity:0;transform:translateY(10px)}}
+
+/* ---------- Einrichtung ---------- */
+.wiz{position:fixed;inset:0;z-index:40;background:radial-gradient(1200px 600px at 20% -10%,rgba(124,92,255,.22),transparent),radial-gradient(900px 500px at 110% 110%,rgba(34,211,238,.14),transparent),var(--bg);display:none;place-items:center}
+.wiz.on{display:grid;animation:fade .3s}
+.wbox{width:min(640px,92vw);background:rgba(20,24,33,.92);border:1px solid var(--line2);border-radius:22px;padding:34px 38px;box-shadow:0 30px 80px rgba(0,0,0,.5);backdrop-filter:blur(10px)}
+.wsteps{display:flex;gap:8px;margin-bottom:26px}
+.wsteps i{height:4px;flex:1;border-radius:4px;background:#262d3b}
+.wsteps i.on{background:var(--grad)}
+.wbox h2{margin:0 0 8px;font-size:24px;font-weight:650}
+.wbox p{color:var(--muted);line-height:1.55;margin:0 0 18px}
+.wfoot{display:flex;justify-content:space-between;align-items:center;margin-top:26px}
+.wstate{display:flex;gap:16px;align-items:center;background:#10141b;border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:8px 0}
+.wstate .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:#1c2230;flex:none}
+.wstate .ic svg{width:22px;height:22px}
+.wstate b{display:block;margin-bottom:3px}.wstate small{color:var(--muted)}
+.radar{position:relative;width:44px;height:44px;flex:none}
+.radar::before,.radar::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent2);animation:radar 1.8s ease-out infinite;opacity:0}
+.radar::after{animation-delay:.9s}
+.radar i{position:absolute;inset:15px;border-radius:50%;background:var(--accent2)}
+@keyframes radar{0%{transform:scale(.3);opacity:.9}100%{transform:scale(1.15);opacity:0}}
+.wf{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px}
+.wf > div{background:#10141b;border:1px solid var(--line);border-radius:12px;padding:12px}
+.wf b{font-size:12.5px;color:var(--muted);display:block;margin-bottom:8px}
+.wf .ok b{color:var(--ok)}
+.hl{color:var(--text);font-weight:600}
+kbd{background:#222838;border:1px solid var(--line2);border-bottom-width:2px;border-radius:6px;padding:1px 6px;font-size:12px;font-family:inherit}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M6 4v16M12 4v16M18 4v16"/><rect x="3.5" y="12" width="5" height="3.2" rx="1.2" fill="#fff" stroke="none"/><rect x="9.5" y="6.5" width="5" height="3.2" rx="1.2" fill="#fff" stroke="none"/><rect x="15.5" y="10" width="5" height="3.2" rx="1.2" fill="#fff" stroke="none"/></svg></div>
+      <div><b>Pico Dashboard</b><small id="verSide">Version –</small></div>
+    </div>
+    <nav class="nav" id="nav">
+      <button data-p="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Übersicht</button>
+      <button data-p="apps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="14" rx="3"/><path d="M8 21h8M12 18v3"/></svg>Programme</button>
+      <button data-p="devices"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>Audiogeräte</button>
+      <button data-p="device"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 4v16M12 4v16M19 4v16"/><rect x="3" y="13" width="4" height="3" rx="1"/><rect x="10" y="7" width="4" height="3" rx="1"/><rect x="17" y="11" width="4" height="3" rx="1"/></svg>Dashboard</button>
+      <button data-p="updates"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m0 0 4.5-4.5M12 15l-4.5-4.5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Updates<i class="dot" id="updDot" hidden></i></button>
+      <button data-p="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Einstellungen</button>
+    </nav>
+    <div class="grow"></div>
+    <div class="conn" id="conn"><i class="led"></i><div><b id="connT">Nicht verbunden</b><small id="connS">Suche Dashboard …</small></div></div>
+  </aside>
+
+  <main class="main" id="main">
+    <!-- Übersicht -->
+    <section class="page" id="p-overview">
+      <div class="head"><div><h1>Übersicht</h1><p>Live-Zustand deines Dashboards</p></div></div>
+      <div class="card hero">
+        <div id="devArt"></div>
+        <div class="stat">
+          <div id="heroBadge"></div>
+          <h2 id="heroTitle">Pico Dashboard</h2>
+          <div class="muted" id="heroSub"></div>
+          <div class="kv" id="heroKV"></div>
+          <div id="heroAct" class="mt"></div>
+        </div>
+      </div>
+      <div class="grid g3 mt" id="faders"></div>
+      <div class="quick mt">
+        <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></div><div style="flex:1;min-width:0"><div class="muted" style="font-size:12px;margin-bottom:6px">Ausgabegerät</div><div class="sel" style="width:100%"><select id="qOut"></select></div></div></div>
+        <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div><div style="flex:1;min-width:0"><div class="muted" style="font-size:12px;margin-bottom:6px">Mikrofon</div><div class="sel" style="width:100%"><select id="qIn"></select></div></div></div>
+      </div>
+    </section>
+
+    <!-- Programme -->
+    <section class="page" id="p-apps">
+      <div class="head"><div><h1>Programme</h1><p>Welche Programme im Menü „Fader 3“ erscheinen und wie sie auf dem Display heißen</p></div></div>
+      <div class="toolbar"><input class="inp" id="appSearch" placeholder="Suchen …"></div>
+      <div class="card list" id="appList"></div>
+    </section>
+
+    <!-- Audiogeräte -->
+    <section class="page" id="p-devices">
+      <div class="head"><div><h1>Audiogeräte</h1><p>Standardgerät wählen, im Menü ausblenden oder kürzer benennen</p></div>
+        <div class="seg" id="devSeg"><button data-k="out" class="on">Ausgabe</button><button data-k="in">Mikrofone</button></div></div>
+      <div class="card list" id="devList"></div>
+    </section>
+
+    <!-- Dashboard -->
+    <section class="page" id="p-device">
+      <div class="head"><div><h1>Dashboard</h1><p>Anzeige, Verdrahtung und Firmware</p></div></div>
+      <div class="card">
+        <h3>Anzeige</h3><p class="sub">Änderungen werden sofort übernommen</p>
+        <div class="row"><div class="lbl"><b>Helligkeit</b><small>Helligkeit des OLED-Displays</small></div><span class="muted" id="brV" style="width:44px;text-align:right"></span><input type="range" id="br" min="5" max="100" step="5"></div>
+        <div class="row"><div class="lbl"><b>Bildschirmschoner</b><small>Display dimmt und schaltet sich ab, wenn nichts passiert – schützt vor Einbrennen</small></div><div class="sel"><select id="saver"><option value="0">Aus</option><option value="60">Nach 1 Minute</option><option value="300">Nach 5 Minuten</option><option value="600">Nach 10 Minuten</option><option value="1800">Nach 30 Minuten</option><option value="3600">Nach 1 Stunde</option></select></div></div>
+        <div class="row"><div class="lbl"><b>Lautstärke-Anzeige</b><small>Beim Bewegen eines Faders kurz Name und Prozent einblenden</small></div><label class="tg"><input type="checkbox" id="ov"><span></span></label></div>
+        <div class="row"><div class="lbl"><b>Start-Animation</b><small>Logo beim Einschalten des Dashboards</small></div><label class="tg"><input type="checkbox" id="anim"><span></span></label></div>
+      </div>
+
+      <div class="card mt">
+        <h3>Verdrahtung</h3><p class="sub">An welchen Pins des Pico die Bauteile hängen. Beim Übernehmen startet das Dashboard neu.</p>
+        <div class="pins" id="pins"></div>
+        <div class="grid g2 mt">
+          <div>
+            <div class="muted" style="font-size:12px;font-weight:550;margin-bottom:8px">Encoder-Empfindlichkeit</div>
+            <div class="seg" id="encDiv"><button data-v="4">Normal</button><button data-v="2">Hoch</button><button data-v="1">Sehr hoch</button></div>
+            <div class="dim" style="font-size:12px;margin-top:8px">Springt der Cursor nur bei jeder zweiten Raste? Dann „Hoch“ wählen.</div>
+          </div>
+          <div>
+            <div class="muted" style="font-size:12px;font-weight:550;margin-bottom:8px">Richtung umkehren</div>
+            <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap" id="invs"></div>
+          </div>
+        </div>
+        <div id="pinErr" class="mt"></div>
+        <div class="pinfoot"><button class="btn primary" id="hwApply" disabled>Übernehmen</button><button class="btn ghost" id="hwReset">Standard wiederherstellen</button><span class="muted" id="hwHint"></span></div>
+      </div>
+
+      <div class="card mt">
+        <h3>Firmware</h3><p class="sub">Die Software auf dem Pico wird von der App verwaltet – du musst keine Dateien kopieren</p>
+        <div id="fwBox"></div>
+        <div class="row"><div class="lbl"><b>Automatisch aktualisieren</b><small>Neue Firmware beim Verbinden automatisch aufspielen</small></div><label class="tg"><input type="checkbox" id="autoFw"><span></span></label></div>
+      </div>
+    </section>
+
+    <!-- Updates -->
+    <section class="page" id="p-updates">
+      <div class="head"><div><h1>Updates</h1><p>Pico Dashboard und die Dashboard-Firmware aktuell halten</p></div><button class="btn" id="chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></svg>Nach Updates suchen</button></div>
+      <div class="card" id="updCard"></div>
+      <div class="card mt">
+        <div class="row"><div class="lbl"><b>Automatisch nach Updates suchen</b><small>Beim Start und alle 6 Stunden – du wirst benachrichtigt, installiert wird erst nach deiner Bestätigung</small></div><label class="tg"><input type="checkbox" id="autoUpd"><span></span></label></div>
+        <div class="row"><div class="lbl"><b>Update-Quelle</b><small>GitHub-Repository mit den Veröffentlichungen</small></div><input class="inp" id="repo" style="width:260px" placeholder="benutzer/repository"></div>
+      </div>
+    </section>
+
+    <!-- Einstellungen -->
+    <section class="page" id="p-settings">
+      <div class="head"><div><h1>Einstellungen</h1><p>Allgemeines und Fehlersuche</p></div></div>
+      <div class="card">
+        <h3>Allgemein</h3>
+        <div class="row"><div class="lbl"><b>Mit Windows starten</b><small>Pico Dashboard läuft unauffällig im Infobereich</small></div><label class="tg"><input type="checkbox" id="auto"><span></span></label></div>
+        <div class="row"><div class="lbl"><b>Verbindung</b><small>Normalerweise automatisch – nur ändern, wenn das Dashboard nicht gefunden wird</small></div><input class="inp" id="port" style="width:160px" placeholder="Automatisch"></div>
+      </div>
+      <div class="card mt">
+        <h3>Hilfe</h3>
+        <div class="row"><div class="lbl"><b>Einrichtung erneut starten</b><small>Führt noch einmal durch Anschließen und Test der Fader</small></div><button class="btn small" id="reSetup">Starten</button></div>
+        <div class="row"><div class="lbl"><b>Protokolle</b><small>Log-Datei und Einstellungen im Explorer öffnen</small></div><button class="btn small" id="logs">Ordner öffnen</button></div>
+        <div class="row"><div class="lbl"><b>Pico Dashboard beenden</b><small>Das Dashboard steuert danach nichts mehr</small></div><button class="btn small" id="quit">Beenden</button></div>
+      </div>
+      <p class="dim mt" id="about" style="font-size:12px"></p>
+    </section>
+  </main>
+</div>
+
+<!-- Einrichtungsassistent -->
+<div class="wiz" id="wiz"><div class="wbox">
+  <div class="wsteps"><i></i><i></i><i></i><i></i></div>
+  <div id="wBody"></div>
+  <div class="wfoot"><button class="btn ghost" id="wSkip">Überspringen</button><div style="display:flex;gap:10px"><button class="btn" id="wBack">Zurück</button><button class="btn primary" id="wNext">Weiter</button></div></div>
+</div></div>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const hasBridge = !!(window.chrome && window.chrome.webview);
+const send = (type, data = {}) => { if (hasBridge) window.chrome.webview.postMessage(JSON.stringify({type, ...data})); else console.log("→", type, data); };
+
+const ICON = {
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+  alert:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
+  info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  usb:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v14M9 6l3-3 3 3M7 12v2l5 3 5-3v-3"/><circle cx="12" cy="19.5" r="1.5"/><rect x="15.5" y="9" width="3" height="2" rx=".5"/><circle cx="7" cy="11" r="1"/></svg>',
+  chip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>',
+  down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m0 0 4.5-4.5M12 15l-4.5-4.5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>',
+  apps:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="14" rx="3"/><path d="M8 21h8M12 18v3"/></svg>',
+  spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/></svg>',
+};
+
+let S = null;              // letzter Zustand von Go
+let LV = [-1, -1, -1];     // Fader-Pegel 0..1000
+let page = "overview";
+let devKind = "out";
+let hwDraft = null;        // Entwurf der Pin-Belegung
+let wizStep = -1;
+
+// ---------- Hilfen ----------
+const pct = v => v < 0 ? "–" : Math.round(v / 10);
+const hueOf = s => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+const avatar = (name) => { const h = hueOf(name); return `<div class="av" style="background:linear-gradient(135deg,hsl(${h} 70% 55%),hsl(${(h+40)%360} 75% 45%))">${esc((name||"?").trim().charAt(0).toUpperCase())}</div>`; };
+const toggle = (attrs, on) => `<label class="tg"><input type="checkbox" ${attrs} ${on ? "checked" : ""}><span></span></label>`;
+const selectHTML = (opts, val) => opts.map(([v, t]) => `<option value="${esc(v)}" ${v === val ? "selected" : ""}>${esc(t)}</option>`).join("");
+
+// Container nur neu zeichnen, wenn sich etwas geändert hat und niemand gerade darin tippt
+function patch(el, html) {
+  if (!el || el._html === html) return;
+  if (el.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { el._pending = html; return; }
+  el._html = html; el.innerHTML = html;
+}
+document.addEventListener("focusout", e => { setTimeout(() => { for (const el of $$("[data-patch]")) if (el._pending && !el.contains(document.activeElement)) { const h = el._pending; el._pending = null; el._html = null; patch(el, h); } }, 0); });
+
+function mdLite(text) {
+  const lines = esc(text || "").split(/\r?\n/);
+  let out = "", inList = false;
+  for (let l of lines) {
+    l = l.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`(.+?)`/g, "<kbd>$1</kbd>");
+    if (/^\s*[-*] /.test(l)) { if (!inList) { out += "<ul>"; inList = true; } out += "<li>" + l.replace(/^\s*[-*] /, "") + "</li>"; continue; }
+    if (inList) { out += "</ul>"; inList = false; }
+    if (/^#{1,6} /.test(l)) out += "<h4>" + l.replace(/^#+ /, "") + "</h4>";
+    else if (l.trim()) out += "<p>" + l + "</p>";
+  }
+  return out + (inList ? "</ul>" : "");
+}
+
+// ---------- Navigation ----------
+function go(p) {
+  page = p;
+  $$("#nav button").forEach(b => b.classList.toggle("on", b.dataset.p === p));
+  $$(".page").forEach(s => s.classList.toggle("on", s.id === "p-" + p));
+  $("#main").scrollTop = 0;
+  render();
+}
+$("#nav").addEventListener("click", e => { const b = e.target.closest("button"); if (b) go(b.dataset.p); });
+
+// ---------- Toasts ----------
+function toast(kind, text) {
+  const t = document.createElement("div");
+  t.className = "toast " + kind;
+  t.innerHTML = (kind === "ok" ? ICON.check : kind === "error" ? ICON.alert : ICON.info) + `<div>${esc(text)}</div>`;
+  $("#toasts").appendChild(t);
+  setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 300); }, kind === "error" ? 6500 : 3800);
+}
+
+// ---------- Geräte-Grafik ----------
+function deviceArt() {
+  const on = S && S.conn.connected;
+  const f3 = S ? S.f3 : "-";
+  const od = S ? (S.outputs.find(o => o.isDefault) || {}) : {};
+  const out = od.alias || od.name || "";
+  const knob = (i, x) => { const v = LV[i] < 0 ? 500 : LV[i]; const y = 176 - v / 1000 * 118; return `<g class="knob" id="kn${i}" style="transform:translateY(${y}px)"><rect x="${x-17}" y="-9" width="34" height="18" rx="5" fill="#f3f5fb"/><rect x="${x-11}" y="-1" width="22" height="2" rx="1" fill="#9aa3b5"/></g>`; };
+  const glow = (i, x) => { const v = LV[i] < 0 ? 500 : LV[i]; const h = v / 1000 * 118; return `<rect id="gl${i}" x="${x-2}" y="${176-h}" width="4" height="${h}" rx="2" fill="url(#gl)" opacity="${on?1:.35}"/>`; };
+  const trunc = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
+  return `<svg class="devsvg" viewBox="0 0 470 240" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#252b39"/><stop offset="1" stop-color="#171b25"/></linearGradient>
+  <linearGradient id="gl" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
+  <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs>
+  <rect x="6" y="14" width="458" height="214" rx="26" fill="url(#body)" stroke="#303849"/>
+  <rect x="40" y="14" width="390" height="2.5" rx="1.2" fill="url(#edge)" opacity="${on?.9:.25}"/>
+  ${[0,1,2].map(i => { const x = 62 + i * 58; return `<rect x="${x-3}" y="52" width="6" height="130" rx="3" fill="#0d1017"/>${glow(i,x)}${knob(i,x)}<text x="${x}" y="206" fill="#6b7489" font-size="11" text-anchor="middle" font-family="Segoe UI Variable Text,Segoe UI,Arial,sans-serif">F${i+1}</text>`; }).join("")}
+  <rect x="236" y="46" width="200" height="104" rx="10" fill="#05070b" stroke="#2b3242"/>
+  <rect x="244" y="54" width="184" height="88" rx="4" fill="#000"/>
+  ${on ? `<text x="252" y="70" fill="#d8dce6" font-size="10" font-family="Consolas,monospace">Fader 3</text>
+  <text x="252" y="100" fill="#fff" font-size="21" font-weight="700" font-family="Segoe UI Variable Text,Segoe UI,Arial,sans-serif">${esc(trunc(f3, 13))}</text>
+  <rect x="252" y="112" width="168" height="1" fill="#fff" opacity=".8"/>
+  <text x="252" y="131" fill="#fff" font-size="12" font-family="Segoe UI Variable Text,Segoe UI,Arial,sans-serif">🔈 ${esc(trunc(out, 20))}</text>`
+  : `<text x="336" y="104" fill="#39414f" font-size="12" text-anchor="middle" font-family="Segoe UI Variable Text,Segoe UI,Arial,sans-serif">nicht verbunden</text>`}
+  <circle cx="336" cy="190" r="24" fill="#10131a" stroke="#343c4d"/><circle cx="336" cy="190" r="17" fill="#1d2230"/><rect x="334.5" y="175" width="3" height="9" rx="1.5" fill="#8b93a7"/>
+  </svg>`;
+}
+function updateKnobs() {
+  for (let i = 0; i < 3; i++) {
+    const v = LV[i] < 0 ? 500 : LV[i];
+    const k = document.getElementById("kn" + i); if (k) k.style.transform = `translateY(${176 - v / 1000 * 118}px)`;
+    const g = document.getElementById("gl" + i); if (g) { const h = v / 1000 * 118; g.setAttribute("y", 176 - h); g.setAttribute("height", h); }
+    const p = document.getElementById("fp" + i); if (p) p.innerHTML = pct(LV[i]) + (LV[i] < 0 ? "" : "<small>%</small>");
+    const b = document.getElementById("fb" + i); if (b) b.style.width = (LV[i] < 0 ? 0 : LV[i] / 10) + "%";
+    const w = document.getElementById("wf" + i); if (w) { w.style.width = (LV[i] < 0 ? 0 : LV[i] / 10) + "%"; }
+  }
+  if (wizStep === 2) wizFaderCheck();
+}
+
+// ---------- Übersicht ----------
+function fwBadge() {
+  const f = S.firmware;
+  if (!S.conn.connected && f.state !== "updating" && f.state !== "restarting") return `<span class="badge"><i class="d"></i>Nicht verbunden</span>`;
+  switch (f.state) {
+    case "ok": return `<span class="badge ok"><i class="d"></i>Verbunden</span>`;
+    case "updating": return `<span class="badge acc"><span class="spin" style="width:10px;height:10px"></span>Firmware-Update ${f.progress}%</span>`;
+    case "restarting": return `<span class="badge acc"><span class="spin" style="width:10px;height:10px"></span>Startet neu …</span>`;
+    case "outdated": return `<span class="badge warn"><i class="d"></i>Firmware veraltet</span>`;
+    case "error": return `<span class="badge err"><i class="d"></i>Problem</span>`;
+  }
+  return `<span class="badge ok"><i class="d"></i>Verbunden</span>`;
+}
+function renderOverview() {
+  patch($("#devArt"), deviceArt());
+  const c = S.conn;
+  $("#heroBadge").innerHTML = fwBadge();
+  $("#heroTitle").textContent = c.connected ? "Dashboard ist bereit" : (S.drives.bootsel || S.drives.circuitpy ? "Neuer Pico gefunden" : "Dashboard nicht verbunden");
+  $("#heroSub").textContent = c.connected ? "Alle Regler sind mit Windows verbunden." : (S.drives.bootsel || S.drives.circuitpy ? "Er kann jetzt eingerichtet werden." : "Schließe dein Dashboard per USB an – es wird automatisch erkannt.");
+  const out = S.outputs.find(o => o.isDefault), mic = S.inputs.find(o => o.isDefault);
+  const kv = [];
+  if (c.connected) kv.push(["Anschluss", c.port], ["Firmware", c.firmware + (S.firmware.state === "outdated" ? ` → ${S.firmware.bundled}` : "")]);
+  kv.push(["Ausgabe", out ? (out.alias || out.name) : "–"], ["Mikrofon", mic ? (mic.alias || mic.name) : "–"]);
+  patch($("#heroKV"), kv.map(([k, v]) => `<span>${k}</span><div>${esc(v)}</div>`).join(""));
+  let act = "";
+  if (!c.connected && (S.drives.bootsel || S.drives.circuitpy)) act = `<button class="btn primary" data-act="wiz">Jetzt einrichten</button>`;
+  else if (S.firmware.state === "outdated") act = `<button class="btn primary" data-act="fw">Firmware aktualisieren</button>`;
+  else if (S.firmware.state === "error") act = `<div class="errbox">${ICON.alert}<div>${esc(S.firmware.message)}</div></div>`;
+  patch($("#heroAct"), act);
+
+  const tgt = [["master", "Systemlautstärke"], ["mic", "Mikrofon"], ["none", "Nicht belegt"]];
+  const apps = S.apps.filter(a => a.active || a.key === S.f3Key);
+  if (S.f3Key && !apps.some(a => a.key === S.f3Key)) apps.unshift({key: S.f3Key, name: S.f3});
+  const appOpts = [["", "– Programm wählen –"], ...apps.map(a => [a.key, (a.alias || a.name) + (a.active ? "" : " (läuft nicht)")])];
+  const cards = [0, 1, 2].map(i => {
+    const sel = i < 2 ? `<div class="sel"><select data-fader="${i+1}">${selectHTML(tgt, i === 0 ? S.config.fader1 : S.config.fader2)}</select></div>`
+                      : `<div class="sel"><select id="f3sel">${selectHTML(appOpts, S.f3Key)}</select></div>`;
+    return `<div class="card fader"><div class="top"><span class="num">Fader ${i+1}</span>${i === 2 ? '<span class="badge acc">Programm</span>' : ""}</div>${sel}
+      <div class="pct" id="fp${i}">${pct(LV[i])}${LV[i] < 0 ? "" : "<small>%</small>"}</div><div class="bar"><i id="fb${i}" style="width:${LV[i] < 0 ? 0 : LV[i]/10}%"></i></div></div>`;
+  });
+  patch($("#faders"), cards.join(""));
+
+  const devOpts = list => list.filter(d => d.active).map(d => [d.key, d.alias || d.name]);
+  const qo = $("#qOut"), qi = $("#qIn");
+  const oh = selectHTML(devOpts(S.outputs), (out || {}).key), ih = selectHTML(devOpts(S.inputs), (mic || {}).key);
+  if (document.activeElement !== qo && qo._h !== oh) { qo.innerHTML = oh; qo._h = oh; }
+  if (document.activeElement !== qi && qi._h !== ih) { qi.innerHTML = ih; qi._h = ih; }
+}
+$("#faders").dataset.patch = 1; $("#heroKV").dataset.patch = 1;
+$("#faders").addEventListener("change", e => {
+  if (e.target.dataset.fader) send("setFaderTarget", {n: +e.target.dataset.fader, target: e.target.value});
+  if (e.target.id === "f3sel" && e.target.value) { send("setFader3App", {key: e.target.value}); toast("info", "Fader 3 am Dashboard einmal ganz nach unten schieben"); }
+});
+$("#qOut").addEventListener("change", e => send("setDefaultDevice", {key: e.target.value}));
+$("#qIn").addEventListener("change", e => send("setDefaultDevice", {key: e.target.value}));
+document.addEventListener("click", e => {
+  const a = e.target.closest("[data-act]"); if (!a) return;
+  const act = a.dataset.act;
+  if (act === "wiz") openWizard(1);
+  if (act === "fw") send("installFirmware");
+  if (act === "upd") send("installUpdate");
+  if (act === "url") send("openUrl", {value: a.dataset.url});
+});
+
+// ---------- Programme ----------
+function renderApps() {
+  const q = $("#appSearch").value.trim().toLowerCase();
+  const list = S.apps.filter(a => !q || (a.alias + " " + a.name + " " + a.key).toLowerCase().includes(q));
+  const html = list.length ? list.map(a => `<div class="item ${a.hidden ? "off" : ""}" data-key="${esc(a.key)}">
+      ${avatar(a.alias || a.name)}
+      <div class="nm"><b>${esc(a.alias || a.name)}</b><small>${a.active ? '<i class="live"></i>spielt Ton ab' : "läuft nicht"} · ${esc(a.key)}</small></div>
+      <input class="inp" data-alias value="${esc(a.alias)}" placeholder="${esc(a.name)}" maxlength="24" title="Anzeigename auf dem Display">
+      ${toggle('data-show title="Im Menü anzeigen"', !a.hidden)}
+      ${a.active ? "<span></span>" : `<button class="iconbtn" data-forget title="Aus der Liste entfernen">${ICON.trash}</button>`}
+    </div>`).join("")
+    : `<div class="empty">${ICON.apps}<div>${q ? "Nichts gefunden" : "Noch keine Programme – sobald ein Programm Ton abspielt, erscheint es hier."}</div></div>`;
+  patch($("#appList"), html);
+}
+$("#appList").dataset.patch = 1;
+$("#appSearch").addEventListener("input", () => { $("#appList")._html = null; renderApps(); });
+
+// ---------- Audiogeräte ----------
+function renderDevices() {
+  $$("#devSeg button").forEach(b => b.classList.toggle("on", b.dataset.k === devKind));
+  const list = devKind === "out" ? S.outputs : S.inputs;
+  const html = list.length ? list.map(d => `<div class="item ${d.hidden ? "off" : ""} ${d.active ? "" : "off"}" data-key="${esc(d.key)}">
+      ${avatar(d.alias || d.name)}
+      <div class="nm"><b>${esc(d.alias || d.name)} ${d.isDefault ? '<span class="badge ok" style="margin-left:6px">Standard</span>' : ""}</b><small>${esc(d.full || d.name)}${d.active ? "" : " · nicht angeschlossen"}</small></div>
+      <div style="display:flex;gap:8px;align-items:center"><input class="inp" style="flex:1" data-alias value="${esc(d.alias)}" placeholder="${esc(d.name)}" maxlength="24" title="Anzeigename auf dem Display"></div>
+      ${toggle('data-show title="Im Menü anzeigen"', !d.hidden)}
+      ${d.active ? (d.isDefault ? "<span></span>" : `<button class="iconbtn" data-default title="Als Standard verwenden">${ICON.check}</button>`) : `<button class="iconbtn" data-forget title="Aus der Liste entfernen">${ICON.trash}</button>`}
+    </div>`).join("") : `<div class="empty">${ICON.info}<div>Keine Geräte gefunden</div></div>`;
+  patch($("#devList"), html);
+}
+$("#devList").dataset.patch = 1;
+$("#devSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { devKind = b.dataset.k; $("#devList")._html = null; renderDevices(); } });
+
+function listEvents(el, kind) {
+  el.addEventListener("change", e => {
+    const it = e.target.closest(".item"); if (!it) return;
+    if (e.target.matches("[data-show]")) send("setItem", {kind, key: it.dataset.key, hidden: !e.target.checked});
+    if (e.target.matches("[data-alias]")) send("setItem", {kind, key: it.dataset.key, alias: e.target.value});
+  });
+  el.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches("[data-alias]")) e.target.blur(); });
+  el.addEventListener("click", e => {
+    const it = e.target.closest(".item"); if (!it) return;
+    if (e.target.closest("[data-forget]")) send("forgetItem", {kind, key: it.dataset.key});
+    if (e.target.closest("[data-default]")) { send("setDefaultDevice", {key: it.dataset.key}); toast("ok", "Standardgerät wird umgeschaltet"); }
+  });
+}
+listEvents($("#appList"), "app");
+listEvents($("#devList"), "device");
+
+// ---------- Dashboard ----------
+const PIN_FIELDS = [["fader1", "Fader 1", "adc"], ["fader2", "Fader 2", "adc"], ["fader3", "Fader 3", "adc"], ["encSW", "Encoder-Taster"],
+                    ["encA", "Encoder A (CLK)"], ["encB", "Encoder B (DT)"], ["sda", "Display SDA"], ["scl", "Display SCL"]];
+function hwDupes(h) {
+  const seen = {}, bad = new Set();
+  for (const [k] of PIN_FIELDS) { if (seen[h[k]]) { bad.add(k); bad.add(seen[h[k]]); } else seen[h[k]] = k; }
+  return bad;
+}
+function renderDeviceSettings() {
+  const d = S.config.display;
+  const br = $("#br");
+  if (document.activeElement !== br) { br.value = d.brightness; }
+  br.style.setProperty("--p", (br.value - 5) / 95 * 100 + "%"); $("#brV").textContent = br.value + " %";
+  if (document.activeElement !== $("#saver")) $("#saver").value = String(d.saver);
+  $("#ov").checked = d.overlay; $("#anim").checked = d.animation;
+
+  if (!hwDraft) hwDraft = JSON.parse(JSON.stringify(S.config.hardware));
+  const h = hwDraft, bad = hwDupes(h);
+  patch($("#pins"), PIN_FIELDS.map(([k, t, kind]) => {
+    const opts = (kind === "adc" ? ["GP26", "GP27", "GP28"] : S.pins).map(p => [p, p]);
+    return `<div class="pin"><label>${t}</label><div class="sel ${bad.has(k) ? "bad" : ""}"><select data-pin="${k}">${selectHTML(opts, h[k])}</select></div></div>`;
+  }).join(""));
+  $$("#encDiv button").forEach(b => b.classList.toggle("on", +b.dataset.v === h.encDivisor));
+  patch($("#invs"), ["Fader 1", "Fader 2", "Fader 3"].map((n, i) => `<label style="display:flex;gap:8px;align-items:center">${toggle(`data-inv="${i}"`, h.invert[i] === "1")}${n}</label>`).join("") +
+    `<label style="display:flex;gap:8px;align-items:center">${toggle("data-encrev", h.encReverse)}Encoder</label>`);
+  const dirty = JSON.stringify(h) !== JSON.stringify(S.config.hardware);
+  $("#hwApply").disabled = !dirty || bad.size > 0;
+  $("#hwHint").textContent = dirty ? "Nicht übernommene Änderungen" : "";
+  patch($("#pinErr"), bad.size ? `<div class="errbox">${ICON.alert}<div>Ein Pin ist doppelt belegt – bitte korrigieren.</div></div>` : "");
+
+  const f = S.firmware, c = S.conn;
+  let fw = `<div class="row"><div class="lbl"><b>Installiert</b><small>${c.connected ? "Version " + esc(c.firmware) : "Dashboard nicht verbunden"}</small></div>`;
+  if (f.state === "updating" || f.state === "restarting") fw += `<div style="width:220px"><div class="bar ${f.state === "restarting" ? "indet" : ""}"><i style="width:${f.progress}%"></i></div><small class="muted">${esc(f.message)}</small></div>`;
+  else if (f.state === "outdated") fw += `<span class="badge warn">Update auf ${esc(f.bundled)}</span><button class="btn primary small" data-act="fw">Jetzt aktualisieren</button>`;
+  else if (c.connected && f.state === "ok") fw += `<span class="badge ok">Aktuell</span><button class="btn small" data-act="fw">Neu installieren</button>`;
+  fw += `</div>`;
+  if (f.state === "error" && f.message) fw += `<div class="errbox" style="margin:4px 0 8px">${ICON.alert}<div>${esc(f.message)}</div></div>`;
+  fw += `<div class="row"><div class="lbl"><b>In der App enthalten</b><small>Version ${esc(f.bundled)} · CircuitPython ${esc(S.cpVersion)} für neue Picos</small></div></div>`;
+  patch($("#fwBox"), fw);
+  $("#autoFw").checked = S.config.autoFirmware;
+}
+$("#pins").dataset.patch = 1; $("#invs").dataset.patch = 1;
+let brTimer;
+$("#br").addEventListener("input", e => { e.target.style.setProperty("--p", (e.target.value - 5) / 95 * 100 + "%"); $("#brV").textContent = e.target.value + " %"; clearTimeout(brTimer); brTimer = setTimeout(sendDisplay, 120); });
+const sendDisplay = () => send("setDisplay", {display: {brightness: +$("#br").value, saver: +$("#saver").value, overlay: $("#ov").checked, animation: $("#anim").checked}});
+["#saver", "#ov", "#anim"].forEach(s => $(s).addEventListener("change", sendDisplay));
+$("#pins").addEventListener("change", e => { const k = e.target.dataset.pin; if (k) { hwDraft[k] = e.target.value; $("#pins")._html = null; renderDeviceSettings(); } });
+$("#invs").addEventListener("change", e => {
+  if (e.target.dataset.inv !== undefined) { const i = +e.target.dataset.inv, a = hwDraft.invert.split(""); a[i] = e.target.checked ? "1" : "0"; hwDraft.invert = a.join(""); }
+  if (e.target.matches("[data-encrev]")) hwDraft.encReverse = e.target.checked;
+  $("#invs")._html = null; renderDeviceSettings();
+});
+$("#encDiv").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { hwDraft.encDivisor = +b.dataset.v; renderDeviceSettings(); } });
+$("#hwApply").addEventListener("click", () => { send("setHardware", {hardware: hwDraft}); });
+$("#hwReset").addEventListener("click", () => { hwDraft = {fader1: "GP28", fader2: "GP27", fader3: "GP26", invert: "000", encA: "GP10", encB: "GP11", encSW: "GP12", encDivisor: 4, encReverse: false, sda: "GP4", scl: "GP5"}; $("#pins")._html = null; $("#invs")._html = null; renderDeviceSettings(); });
+$("#autoFw").addEventListener("change", e => send("setAutoFirmware", {on: e.target.checked}));
+
+// ---------- Updates ----------
+function renderUpdates() {
+  const u = S.update;
+  $("#updDot").hidden = u.state !== "available";
+  let icon = ICON.check, title = "Du bist auf dem neuesten Stand", sub = `Pico Dashboard ${esc(u.current)}`, body = "";
+  switch (u.state) {
+    case "disabled": icon = ICON.info; title = "Updates noch nicht eingerichtet"; sub = "Trage unten das GitHub-Repository ein, aus dem Updates kommen."; break;
+    case "idle": icon = ICON.info; title = "Noch nicht geprüft"; break;
+    case "checking": icon = '<span class="spin" style="width:26px;height:26px;border-width:3px"></span>'; title = "Suche nach Updates …"; break;
+    case "available": case "downloading": case "verifying": case "installing":
+      icon = ICON.down; title = `Version ${esc(u.latest)} ist verfügbar`; sub = `Installiert: ${esc(u.current)}`;
+      if (u.state === "available") body = `<div style="display:flex;gap:10px;margin-top:16px"><button class="btn primary" data-act="upd">${ICON.down}Jetzt installieren</button>${u.url ? `<button class="btn ghost" data-act="url" data-url="${esc(u.url)}">Auf GitHub ansehen</button>` : ""}</div>`;
+      else body = `<div class="mt" style="max-width:420px"><div class="bar ${u.state !== "downloading" ? "indet" : ""}"><i style="width:${u.progress}%"></i></div><small class="muted">${u.state === "downloading" ? `Wird heruntergeladen … ${u.progress}%` : u.state === "verifying" ? "Wird geprüft …" : "Installer wird gestartet – bitte die Windows-Abfrage bestätigen."}</small></div>`;
+      if (u.error) body += `<div class="errbox mt">${ICON.alert}<div>${esc(u.error)}</div></div>`;
+      if (u.notes) body += `<div class="notes">${mdLite(u.notes)}</div>`;
+      break;
+    case "error": icon = ICON.alert; title = "Update-Prüfung fehlgeschlagen"; sub = esc(u.error); break;
+  }
+  if (u.lastCheck && u.state !== "checking") sub += ` · zuletzt geprüft ${esc(u.lastCheck)}`;
+  patch($("#updCard"), `<div class="upd"><div class="big">${icon}</div><div><h2>${title}</h2><div class="muted">${sub}</div></div></div>${body}`);
+  $("#chk").disabled = u.state === "checking" || u.state === "disabled";
+  $("#autoUpd").checked = S.config.autoUpdate;
+  const r = $("#repo"); if (document.activeElement !== r) r.value = S.config.updateRepo || u.repo || "";
+}
+$("#chk").addEventListener("click", () => send("checkUpdate"));
+$("#autoUpd").addEventListener("change", e => send("setAutoUpdate", {on: e.target.checked}));
+$("#repo").addEventListener("change", e => send("setUpdateRepo", {value: e.target.value}));
+
+// ---------- Einstellungen ----------
+function renderSettings() {
+  $("#auto").checked = S.config.autostart;
+  if (document.activeElement !== $("#port")) $("#port").value = S.config.port || "";
+  $("#about").textContent = `Pico Dashboard ${S.app.version} · Firmware ${S.firmware.bundled} · CircuitPython ${S.cpVersion}`;
+}
+$("#auto").addEventListener("change", e => send("setAutostart", {on: e.target.checked}));
+$("#port").addEventListener("change", e => send("setPort", {value: e.target.value}));
+$("#logs").addEventListener("click", () => send("openLogs"));
+$("#quit").addEventListener("click", () => send("quit"));
+$("#reSetup").addEventListener("click", () => openWizard(0));
+
+// ---------- Einrichtungsassistent ----------
+let wizSeen = [false, false, false];
+function openWizard(step) { wizStep = step; wizSeen = [false, false, false]; $("#wiz").classList.add("on"); renderWizard(); }
+function closeWizard() { wizStep = -1; $("#wiz").classList.remove("on"); send("setupDone"); }
+function wizFaderCheck() {
+  for (let i = 0; i < 3; i++) if (LV[i] >= 0 && (LV[i] < 150 || LV[i] > 850)) wizSeen[i] = true;
+  $$(".wf > div").forEach((d, i) => { d.classList.toggle("ok", wizSeen[i]); const b = d.querySelector("b"); if (b) b.innerHTML = wizSeen[i] ? `Fader ${i+1} ✓` : `Fader ${i+1}`; });
+}
+function renderWizard() {
+  if (wizStep < 0 || !S) return;
+  $$(".wsteps i").forEach((el, i) => el.classList.toggle("on", i <= wizStep));
+  const c = S.conn, f = S.firmware, st = S.setup, dr = S.drives;
+  let html = "", next = "Weiter", nextOk = true;
+  if (wizStep === 0) {
+    html = `<h2>Willkommen bei Pico Dashboard</h2><p>In wenigen Schritten ist dein Dashboard einsatzbereit. Die App kümmert sich um alles – auch um die Software auf dem Pico. Du musst keine Dateien kopieren.</p>
+      <div class="wstate"><div class="ic" style="background:var(--grad)">${ICON.spark.replace('stroke="currentColor"','stroke="#fff"')}</div><div><b>Was passiert?</b><small>Dashboard anschließen · Software wird automatisch installiert · Fader testen</small></div></div>`;
+    next = "Los geht’s";
+  } else if (wizStep === 1) {
+    html = `<h2>Dashboard anschließen</h2><p>Verbinde den Pico per USB mit dem PC.</p>`;
+    const busy = ["download", "flash", "waitDrive", "install", "restart"].includes(st.state);
+    if (busy) {
+      const txt = {download: "CircuitPython wird heruntergeladen", flash: "CircuitPython wird aufgespielt", waitDrive: "Pico startet neu", install: "Dashboard-Software wird installiert", restart: "Dashboard startet"}[st.state];
+      const det = st.state === "download" || st.state === "install";
+      html += `<div class="wstate"><span class="spin" style="width:28px;height:28px;border-width:3px;margin:8px"></span><div style="flex:1"><b>${txt} …</b><div class="bar ${det ? "" : "indet"}" style="margin-top:8px"><i style="width:${st.progress}%"></i></div></div></div>`;
+      nextOk = false;
+    } else if (c.connected && (f.state === "updating" || f.state === "restarting" || f.state === "outdated")) {
+      html += `<div class="wstate"><span class="spin" style="width:28px;height:28px;border-width:3px;margin:8px"></span><div style="flex:1"><b>Firmware wird aktualisiert …</b><div class="bar ${f.state === "restarting" ? "indet" : ""}" style="margin-top:8px"><i style="width:${f.progress}%"></i></div></div></div>`;
+      nextOk = false;
+    } else if (c.connected) {
+      html += `<div class="wstate"><div class="ic" style="background:rgba(52,211,153,.15);color:var(--ok)">${ICON.check}</div><div><b>Dashboard gefunden</b><small>Verbunden über ${esc(c.port)} · Firmware ${esc(c.firmware)}</small></div></div>`;
+    } else if (!c.connected && ["restart"].includes(f.state)) {
+      html += `<div class="wstate"><span class="spin" style="width:28px;height:28px;border-width:3px;margin:8px"></span><div><b>Dashboard startet neu …</b></div></div>`; nextOk = false;
+    } else if (st.state === "error") {
+      html += `<div class="errbox">${ICON.alert}<div>${esc(st.message)}</div></div><div class="mt"><button class="btn" onclick="send('setupReset')">Erneut versuchen</button></div>`; nextOk = false;
+    } else if (dr.circuitpy) {
+      html += `<div class="wstate"><div class="ic" style="color:var(--accent2)">${ICON.chip}</div><div style="flex:1"><b>Pico mit CircuitPython gefunden</b><small>Laufwerk ${esc(dr.circuitpy)} – die Dashboard-Software fehlt noch</small></div><button class="btn primary" onclick="send('setupFirmware')">Installieren</button></div>`; nextOk = false;
+    } else if (dr.bootsel) {
+      html += `<div class="wstate"><div class="ic" style="color:var(--accent2)">${ICON.chip}</div><div style="flex:1"><b>Neuer Pico im Einrichtungsmodus</b><small>${esc(dr.board)} auf ${esc(dr.bootsel)} – CircuitPython ${esc(S.cpVersion)} wird heruntergeladen und aufgespielt</small></div><button class="btn primary" onclick="send('setupCircuitPython')">Einrichten</button></div>`; nextOk = false;
+    } else {
+      html += `<div class="wstate"><div class="radar"><i></i></div><div><b>Suche Dashboard …</b><small>Wird automatisch erkannt, sobald es angeschlossen ist</small></div></div>
+        <p style="margin-top:14px;font-size:13px">Neuer Pico ohne Software? <span class="hl">BOOTSEL-Taste</span> gedrückt halten, USB einstecken, loslassen – dann erscheint er hier.</p>`;
+      nextOk = false;
+    }
+  } else if (wizStep === 2) {
+    html = `<h2>Fader testen</h2><p>Schiebe jeden Fader einmal ganz nach oben und ganz nach unten. Bewegt sich der falsche Balken? Dann unter <span class="hl">Dashboard → Verdrahtung</span> die Pins tauschen.</p>
+      <div class="wf">${[0,1,2].map(i => `<div><b>Fader ${i+1}</b><div class="bar"><i id="wf${i}" style="width:${LV[i] < 0 ? 0 : LV[i]/10}%;transition:width .08s linear"></i></div></div>`).join("")}</div>`;
+    next = "Weiter";
+  } else if (wizStep === 3) {
+    html = `<h2>Fertig!</h2><p>Dein Dashboard ist eingerichtet. Pico Dashboard läuft ab jetzt im Infobereich unten rechts – ein Klick auf das Symbol öffnet dieses Fenster.</p>
+      <div class="wstate"><div class="ic" style="color:var(--accent2)">${ICON.info}</div><div style="flex:1"><b>Mit Windows starten</b><small>Empfohlen, damit die Fader immer funktionieren</small></div>${toggle('id="wAuto"', S.config.autostart)}</div>`;
+    next = "Fertig";
+  }
+  if ($("#wBody")._html !== html) { $("#wBody").innerHTML = html; $("#wBody")._html = html; const wa = $("#wAuto"); if (wa) wa.addEventListener("change", e => send("setAutostart", {on: e.target.checked})); }
+  if (wizStep === 2) wizFaderCheck();
+  $("#wNext").textContent = next; $("#wNext").disabled = !nextOk;
+  $("#wBack").style.visibility = wizStep > 0 ? "visible" : "hidden";
+  $("#wSkip").style.visibility = wizStep < 3 ? "visible" : "hidden";
+}
+$("#wNext").addEventListener("click", () => { if (wizStep >= 3) closeWizard(); else { wizStep++; renderWizard(); } });
+$("#wBack").addEventListener("click", () => { if (wizStep > 0) { wizStep--; renderWizard(); } });
+$("#wSkip").addEventListener("click", closeWizard);
+
+// ---------- Rendern ----------
+function renderConn() {
+  const c = S.conn, f = S.firmware, el = $("#conn");
+  const busy = f.state === "updating" || f.state === "restarting";
+  el.className = "conn " + (busy ? "busy" : c.connected ? "on" : "");
+  $("#connT").textContent = busy ? "Firmware-Update" : c.connected ? "Verbunden" : "Nicht verbunden";
+  $("#connS").textContent = busy ? (f.state === "restarting" ? "Startet neu …" : f.progress + " %") : c.connected ? `${c.port} · Firmware ${c.firmware}` : "Suche Dashboard …";
+  $("#verSide").textContent = "Version " + S.app.version;
+}
+function render() {
+  if (!S) return;
+  renderConn();
+  if (page === "overview") renderOverview();
+  if (page === "apps") renderApps();
+  if (page === "devices") renderDevices();
+  if (page === "device") renderDeviceSettings();
+  if (page === "updates") renderUpdates();
+  if (page === "settings") renderSettings();
+  $("#updDot").hidden = S.update.state !== "available";
+  renderWizard();
+}
+
+let firstState = true;
+window.__app = {
+  state(s) {
+    const hwChanged = S && JSON.stringify(S.config.hardware) !== JSON.stringify(s.config.hardware);
+    S = s;
+    if (hwChanged) { hwDraft = null; $("#pins")._html = null; $("#invs")._html = null; }
+    if (firstState) { firstState = false; if (!s.config.setupDone) openWizard(0); }
+    render();
+  },
+  levels(v) { LV = v; updateKnobs(); },
+  toast,
+  go,
+};
+go("overview");
+send("ready");
+
+// ---------- Vorschau ohne App (nur zum Entwickeln) ----------
+if (!hasBridge) {
+  const demo = {
+    app: {version: "2.0.0", debug: true},
+    conn: {connected: true, port: "COM7", firmware: "2.0.0", proto: 2},
+    firmware: {state: "ok", progress: 0, message: "", bundled: "2.0.0"},
+    setup: {state: "idle", progress: 0, message: ""},
+    drives: {circuitpy: "E:\\", bootsel: "", board: ""}, cpVersion: "10.3.1",
+    faders: [720, 450, 300], f3: "Spotify", f3Key: "spotify.exe",
+    apps: [{key: "spotify.exe", name: "Spotify", alias: "", hidden: false, active: true}, {key: "discord.exe", name: "Discord", alias: "", hidden: false, active: true},
+           {key: "chrome.exe", name: "Google Chrome", alias: "Chrome", hidden: false, active: true}, {key: "steamwebhelper.exe", name: "Steam Client WebHelper", alias: "", hidden: true, active: false}],
+    outputs: [{key: "o1", name: "Lautsprecher", full: "Lautsprecher (Realtek(R) Audio)", alias: "Boxen", hidden: false, active: true, isDefault: true},
+              {key: "o2", name: "Headset", full: "Headset (Arctis Nova 7)", alias: "", hidden: false, active: true}, {key: "o3", name: "LG ULTRAGEAR", full: "LG ULTRAGEAR (NVIDIA High Definition Audio)", alias: "", hidden: true, active: true}],
+    inputs: [{key: "i1", name: "Mikrofon", full: "Mikrofon (Shure MV7)", alias: "MV7", hidden: false, active: true, isDefault: true}, {key: "i2", name: "Headset-Mikrofon", full: "Headset-Mikrofon (Arctis Nova 7)", alias: "", hidden: false, active: true}],
+    config: {fader1: "master", fader2: "mic", hardware: {fader1: "GP28", fader2: "GP27", fader3: "GP26", invert: "000", encA: "GP10", encB: "GP11", encSW: "GP12", encDivisor: 4, encReverse: false, sda: "GP4", scl: "GP5"},
+             display: {brightness: 80, saver: 300, overlay: true, animation: true}, autostart: true, autoUpdate: true, autoFirmware: true, port: "", setupDone: true, updateRepo: ""},
+    update: {state: "available", current: "2.0.0", latest: "2.1.0", notes: "## Neu\n- **Mute** per Langdruck\n- Schnellere Verbindung\n\n## Behoben\n- Umlaute in Gerätenamen", progress: 0, error: "", lastCheck: "30.09.2026 13:05", repo: "johannes/pico-dashboard", url: "https://github.com/johannes/pico-dashboard/releases"},
+    pins: Array.from({length: 23}, (_, i) => "GP" + i).concat(["GP26", "GP27", "GP28"]),
+  };
+  window.__demo = demo;
+  window.__app.state(demo);
+  window.__app.levels(demo.faders);
+  let t = 0; setInterval(() => { t += .05; window.__app.levels([720 + Math.sin(t) * 60 | 0, 450, 300 + Math.cos(t * .7) * 120 | 0]); }, 60);
+}
+</script>
+</body>
+</html>

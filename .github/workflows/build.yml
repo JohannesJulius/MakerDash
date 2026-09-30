@@ -1,0 +1,32 @@
+# Prüft bei jedem Push, ob alles baut, und stellt die Dateien zum Testen bereit.
+name: Build
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq nsis
+      - name: Bauen
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: "0"
+        run: |
+          mkdir -p dist
+          go vet ./... || true
+          go build -trimpath -ldflags "-H windowsgui -s -w -X main.AppVersion=0.0.0-test -X main.UpdateRepo=${{ github.repository }}" -o dist/PicoDashboard.exe .
+      - working-directory: installer
+        run: makensis -V2 -DVERSION=0.0.0 setup.nsi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PicoDashboard-test
+          path: dist/
