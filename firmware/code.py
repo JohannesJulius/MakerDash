@@ -1,13 +1,14 @@
-# Pico Dashboard – Firmware für Raspberry Pi Pico 2 (CircuitPython 9/10)
+# MakerDash – Firmware für Raspberry Pi Pico 2 (CircuitPython 9/10)
 #
-# Diese Datei wird von der App "Pico Dashboard" installiert und aktualisiert.
+# Diese Datei wird von der App "MakerDash" installiert und aktualisiert.
 # Einstellungen (Pins usw.) stehen in settings.toml und werden in der App geändert.
 
-FW_VERSION = "2.0.0"
+FW_VERSION = "2.1.0"
 PROTO = 2
 BOOT_MARKER = "DASHBOOT 2"
 
 import os
+import math
 import time
 import board
 import busio
@@ -22,7 +23,7 @@ import microcontroller
 import vectorio
 from analogio import AnalogIn
 import adafruit_displayio_ssd1306
-from adafruit_display_text import label
+from adafruit_display_text import bitmap_label
 from adafruit_bitmap_font import bitmap_font
 
 
@@ -58,6 +59,7 @@ ENC_DIVISOR = cfg_int("DASH_ENC_DIVISOR", 4)
 ENC_REVERSE = cfg_int("DASH_ENC_REVERSE", 0)
 PIN_SDA = cfg_pin("DASH_SDA", "GP4")
 PIN_SCL = cfg_pin("DASH_SCL", "GP5")
+I2C_FREQ = cfg_int("DASH_I2C_FREQ", 400000)      # SSD1306 schafft 400 kHz (Fast Mode)
 ANIMATION = cfg_int("DASH_ANIMATION", 1)
 
 # Laufzeit-Einstellungen (werden von der App per CFG aktualisiert)
@@ -176,7 +178,7 @@ taster = keypad.Keys((PIN_ENC_SW,), value_when_pressed=False, pull=True)
 
 # ======================= Display =======================
 displayio.release_displays()
-i2c = busio.I2C(PIN_SCL, PIN_SDA)
+i2c = busio.I2C(PIN_SCL, PIN_SDA, frequency=I2C_FREQ)
 bus = i2cdisplaybus.I2CDisplayBus(i2c, device_address=0x3C)
 display = adafruit_displayio_ssd1306.SSD1306(bus, width=128, height=64)
 
@@ -184,6 +186,9 @@ WEISS = 0xFFFFFF
 SCHWARZ = 0x000000
 FONT_MENU = bitmap_font.load_font("/fonts/menu.bdf")
 FONT_GROSS = bitmap_font.load_font("/fonts/big.bdf")
+# BDF-Schriften laden Zeichen sonst erst bei Bedarf – jedes neue Zeichen durchsucht dann die
+# ganze Datei. Das machte das Menü träge; deshalb nach der Start-Animation alles vorladen.
+ZEICHEN = "".join(chr(c) for c in range(32, 127)) + "äöüÄÖÜß°"
 
 PAL_WEISS = displayio.Palette(1)
 PAL_WEISS[0] = WEISS
@@ -220,7 +225,8 @@ ICON_LAUTSPRECHER = ("000001000", "000011000", "011111010", "011111001",
 
 
 def text(font, t, anker, pos, farbe=WEISS):
-    return label.Label(font, text=t, color=farbe, anchor_point=anker, anchored_position=pos)
+    # bitmap_label: ein Bitmap pro Text statt einer Kachel pro Buchstabe – deutlich schneller
+    return bitmap_label.Label(font, text=t, color=farbe, anchor_point=anker, anchored_position=pos)
 
 
 # --- Startbild ---
@@ -274,6 +280,43 @@ for teil in (upd_titel, upd_text, rechteck(120, 1, 4, 48), rechteck(120, 1, 4, 5
     update_bild.append(teil)
 
 
+# --- Bildschirmschoner: MakerDash-Logo wandert langsam über das Display ---
+schoner = displayio.Group()
+sch_knoepfe = []
+for i in range(3):
+    schoner.append(rechteck(1, 15, 2 + i * 6, 1))
+    k = rechteck(5, 3, i * 6, 7)
+    schoner.append(k)
+    sch_knoepfe.append(k)
+schoner.append(text(FONT_MENU, "MakerDash", (0, 0.5), (19, 8)))
+SCH_W, SCH_H = 19 + 73, 17
+sch_x, sch_y = 10.0, 20.0
+sch_dx, sch_dy = 9.0, 5.0             # Pixel pro Sekunde
+sch_zeit = 0.0
+
+
+def schoner_schritt(t):
+    """Bewegt das Logo (ca. 20 Bilder/s) und lässt die Mini-Fader wippen."""
+    global sch_x, sch_y, sch_dx, sch_dy, sch_zeit
+    dt = t - sch_zeit
+    if dt < 0.05:
+        return
+    sch_zeit = t
+    dt = min(dt, 0.2)
+    sch_x += sch_dx * dt
+    sch_y += sch_dy * dt
+    if sch_x < 0 or sch_x > 128 - SCH_W:
+        sch_dx = -sch_dx
+        sch_x = max(0.0, min(128.0 - SCH_W, sch_x))
+    if sch_y < 0 or sch_y > 64 - SCH_H:
+        sch_dy = -sch_dy
+        sch_y = max(0.0, min(64.0 - SCH_H, sch_y))
+    schoner.x = int(sch_x)
+    schoner.y = int(sch_y)
+    for i, k in enumerate(sch_knoepfe):
+        k.y = int(7 + 6 * math.sin(t * 1.6 + i * 2.1))
+
+
 def start_animation():
     """Kurzes Logo beim Einschalten: drei Fader schieben sich in Position."""
     g = displayio.Group()
@@ -284,8 +327,8 @@ def start_animation():
         k = rechteck(9, 5, x - 4, 51)
         g.append(k)
         knoepfe.append(k)
-    t_gross = text(FONT_GROSS, "Pico", (0, 0.5), (128, 24))
-    t_klein = text(FONT_MENU, "Dashboard", (0, 0.5), (128, 44))
+    t_gross = text(FONT_GROSS, "Maker", (0, 0.5), (128, 20))
+    t_klein = text(FONT_GROSS, "Dash", (0, 0.5), (128, 42))
     t_ver = text(terminalio.FONT, "v" + FW_VERSION, (1, 1), (127, 64))
     t_ver.hidden = True
     for t in (t_gross, t_klein, t_ver):
@@ -305,17 +348,31 @@ def start_animation():
         p = max(0.0, min(1.0, (t - 0.35) / 0.6))
         p = 1 - (1 - p) ** 3
         x = int(128 - p * (128 - 50))
-        t_gross.anchored_position = (x, 24)
+        t_gross.anchored_position = (x, 20)
         p2 = max(0.0, min(1.0, (t - 0.5) / 0.6))
         p2 = 1 - (1 - p2) ** 3
-        t_klein.anchored_position = (int(128 - p2 * (128 - 50)), 44)
+        t_klein.anchored_position = (int(128 - p2 * (128 - 50)), 42)
         t_ver.hidden = t < 1.0
         time.sleep(0.015)
-    time.sleep(0.5)
+    return time.monotonic()
+
+
+def schriften_vorladen():
+    for f in (FONT_MENU, FONT_GROSS):
+        try:
+            f.load_glyphs(ZEICHEN)
+        except Exception:
+            pass
 
 
 if ANIMATION:
-    start_animation()
+    ende = start_animation()
+    schriften_vorladen()                       # läuft, während das Logo noch steht
+    rest = 0.5 - (time.monotonic() - ende)
+    if rest > 0:
+        time.sleep(rest)
+else:
+    schriften_vorladen()
 
 # ======================= Zustand =======================
 apps = []
@@ -344,23 +401,24 @@ def pc_da():
     return ser is not None and ser.connected and time.monotonic() - letzte_rx < PC_TIMEOUT
 
 
-def eintraege():
+def eintraege(m=None):
     """Liste aus (Text, Pfeil, Wert)."""
-    if modus == "HAUPT":
+    modus_ = m or modus
+    if modus_ == "HAUPT":
         return [("Zurück", False, None), ("Fader 3", True, None),
                 ("Ausgabe", True, None), ("Mikrofon", True, None)]
     liste = [("Zurück", False, None)]
     if not pc_da():
         return liste + [("(kein PC)", False, None)]
-    if modus == "PROG":
+    if modus_ == "PROG":
         if not apps:
             liste.append(("(kein Ton aktiv)", False, None))
         for n in apps:
             liste.append((("* " if n == f3_name else "  ") + n, False, n))
-    elif modus == "AUSGABE":
+    elif modus_ == "AUSGABE":
         for i, n in enumerate(ausgaben):
             liste.append((("* " if i == ausgabe_idx else "  ") + n, False, n))
-    elif modus == "MIKRO":
+    elif modus_ == "MIKRO":
         if not mikros:
             liste.append(("(kein Mikrofon)", False, None))
         for i, n in enumerate(mikros):
@@ -381,12 +439,20 @@ def menue_zeichnen():
         idx = scroll + zeile
         t, pfeil, _ = liste[idx] if idx < len(liste) else ("", False, None)
         farbe = SCHWARZ if idx == cursor else WEISS
-        if menue_labels[zeile].text != t:
-            menue_labels[zeile].text = t
-        menue_labels[zeile].color = farbe
-        menue_pfeile[zeile].text = ">" if pfeil else ""
-        menue_pfeile[zeile].color = farbe
-    balken.y = (cursor - scroll) * ZEILENHOEHE
+        # nur Geändertes anfassen – jede Änderung kostet Rechenzeit und Übertragung
+        lbl, pf = menue_labels[zeile], menue_pfeile[zeile]
+        if lbl.text != t:
+            lbl.text = t
+        if lbl.color != farbe:
+            lbl.color = farbe
+        p = ">" if pfeil else ""
+        if pf.text != p:
+            pf.text = p
+        if pf.color != farbe:
+            pf.color = farbe
+    y = (cursor - scroll) * ZEILENHOEHE
+    if balken.y != y:
+        balken.y = y
 
 
 def gross_setzen(lbl, t):
@@ -408,7 +474,9 @@ def start_zeichnen():
 
 def bild_zeigen():
     """Zeigt das zum Zustand passende Bild."""
-    if update_laeuft:
+    if schlaeft and not update_laeuft:
+        display.root_group = schoner
+    elif update_laeuft:
         display.root_group = update_bild
     elif time.monotonic() < overlay_bis:
         display.root_group = overlay
@@ -429,8 +497,8 @@ def gehe_zu(neuer_modus, neuer_cursor=0):
     bild_zeigen()
 
 
-def cursor_auf(name, standard=1):
-    for i, (_, _, wert) in enumerate(eintraege()):
+def cursor_auf(ziel_modus, name, standard=1):
+    for i, (_, _, wert) in enumerate(eintraege(ziel_modus)):
         if wert is not None and wert == name:
             return i
     return standard
@@ -459,11 +527,8 @@ def aufwachen():
     letzte_aktivitaet = time.monotonic()
     war_aus = schlaeft
     if schlaeft:
-        try:
-            display.wake()
-        except Exception:
-            pass
         schlaeft = False
+        bild_zeigen()
     if gedimmt:
         helligkeit_setzen(helligkeit)
         gedimmt = False
@@ -479,16 +544,13 @@ def taster_gedrueckt():
         if cursor == 0:
             gehe_zu("START")
         elif cursor == 1:
-            gehe_zu("PROG")
-            gehe_zu("PROG", cursor_auf(f3_name))
+            gehe_zu("PROG", cursor_auf("PROG", f3_name))
         elif cursor == 2:
-            gehe_zu("AUSGABE")
             aktiv = ausgaben[ausgabe_idx] if 0 <= ausgabe_idx < len(ausgaben) else None
-            gehe_zu("AUSGABE", cursor_auf(aktiv))
+            gehe_zu("AUSGABE", cursor_auf("AUSGABE", aktiv))
         else:
-            gehe_zu("MIKRO")
             aktiv = mikros[mikro_idx] if 0 <= mikro_idx < len(mikros) else None
-            gehe_zu("MIKRO", cursor_auf(aktiv))
+            gehe_zu("MIKRO", cursor_auf("MIKRO", aktiv))
         return
     _, _, wert = eintraege()[cursor]
     if cursor == 0:
@@ -710,17 +772,18 @@ while True:
             ico_ausgabe.hidden = False
             lbl_ausgabe.hidden = False
 
-    # Bildschirmschoner: erst dimmen, dann ausschalten
+    # Bildschirmschoner: gedimmtes, wanderndes Logo (schont das OLED, sieht aber nicht "aus" aus)
     if schoner_sek > 0 and not update_laeuft:
-        ruhe = jetzt - letzte_aktivitaet
-        if not schlaeft and ruhe > schoner_sek:
-            try:
-                display.sleep()
-            except Exception:
-                pass
+        if schlaeft:
+            schoner_schritt(jetzt)
+        elif jetzt - letzte_aktivitaet > schoner_sek:
             schlaeft = True
-        elif not gedimmt and not schlaeft and ruhe > schoner_sek * 0.8:
-            helligkeit_setzen(min(helligkeit, 0.05))
+            overlay_bis = 0
+            helligkeit_setzen(max(0.02, helligkeit * 0.4))
             gedimmt = True
+            schoner_schritt(jetzt)
+            bild_zeigen()
+    elif schlaeft and not update_laeuft:
+        aufwachen()                            # Schoner wurde in der App ausgeschaltet
 
     time.sleep(0.005)

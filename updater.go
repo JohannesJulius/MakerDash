@@ -3,7 +3,7 @@
 package main
 
 // Updates über GitHub Releases.
-// Erwartete Release-Dateien: PicoDashboard-Setup.exe und SHA256SUMS.txt
+// Erwartete Release-Dateien: MakerDash-Setup.exe und SHA256SUMS.txt
 
 import (
 	"bufio"
@@ -28,10 +28,10 @@ import (
 // Werden beim Bauen gesetzt: -ldflags "-X main.AppVersion=1.2.3 -X main.UpdateRepo=user/repo"
 var (
 	AppVersion = "0.0.0-dev"
-	UpdateRepo = "JohannesJulius/picodashboard"
+	UpdateRepo = "JohannesJulius/makerdash"
 )
 
-const setupAsset = "PicoDashboard-Setup.exe"
+const setupAsset = "MakerDash-Setup.exe"
 const sumsAsset = "SHA256SUMS.txt"
 
 var httpClient = &http.Client{Timeout: 60 * time.Second}
@@ -41,7 +41,7 @@ func httpGet(url string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "PicoDashboard/"+AppVersion)
+	req.Header.Set("User-Agent", "MakerDash/"+AppVersion)
 	req.Header.Set("Accept", "application/vnd.github+json")
 	return httpClient.Do(req)
 }
@@ -197,7 +197,7 @@ func (u *Updater) Check(manual bool) {
 	}
 	u.set(func(s *UpdateState) { s.State = "checking"; s.Error = "" })
 	api := "https://api.github.com"
-	if v := os.Getenv("PICODASH_UPDATE_API"); v != "" { // nur für Tests
+	if v := os.Getenv("MAKERDASH_UPDATE_API"); v != "" { // nur für Tests
 		api = v
 	}
 	resp, err := httpGet(api + "/repos/" + repo + "/releases/latest")
@@ -244,7 +244,7 @@ func (u *Updater) Check(manual bool) {
 			s.LastCheck = now
 		})
 		if manual {
-			toast("ok", "Pico Dashboard ist auf dem neuesten Stand.")
+			toast("ok", "MakerDash ist auf dem neuesten Stand.")
 		}
 		return
 	}
@@ -261,7 +261,7 @@ func (u *Updater) Check(manual bool) {
 		s.LastCheck = now
 	})
 	if first && !uiVisible() {
-		notifyUser("Update verfügbar", "Pico Dashboard "+latest+" ist verfügbar. Klicke hier zum Installieren.", "updates")
+		notifyUser("Update verfügbar", "MakerDash "+latest+" ist verfügbar. Klicke hier zum Installieren.", "updates")
 	}
 }
 
@@ -275,9 +275,9 @@ func (u *Updater) Install() {
 	setupURL, sumsURL, latest := u.setupURL, u.sumsURL, u.st.Latest
 	u.mu.Unlock()
 
-	dir := filepath.Join(os.TempDir(), "PicoDashboard-Update")
+	dir := filepath.Join(os.TempDir(), "MakerDash-Update")
 	os.MkdirAll(dir, 0o755)
-	file := filepath.Join(dir, "PicoDashboard-Setup-"+latest+".exe")
+	file := filepath.Join(dir, "MakerDash-Setup-"+latest+".exe")
 	u.set(func(s *UpdateState) { s.State = "downloading"; s.Progress = 0; s.Error = "" })
 	if err := download(setupURL, file, func(p int) { u.set(func(s *UpdateState) { s.Progress = p }) }); err != nil {
 		u.set(func(s *UpdateState) { s.State = "error"; s.Error = "Download fehlgeschlagen: " + err.Error() })

@@ -49,7 +49,7 @@ jobs:
           mkdir -p dist
           go build -trimpath \
             -ldflags "-H windowsgui -s -w -X main.AppVersion=${{ steps.v.outputs.version }} -X main.UpdateRepo=${{ github.repository }}" \
-            -o dist/PicoDashboard.exe .
+            -o dist/MakerDash.exe .
 
       - name: Installer bauen
         if: steps.v.outputs.skip != 'true'
@@ -59,7 +59,11 @@ jobs:
       - name: Prüfsumme
         if: steps.v.outputs.skip != 'true'
         working-directory: dist
-        run: sha256sum PicoDashboard-Setup.exe > SHA256SUMS.txt
+        # PicoDashboard-Setup.exe: gleiche Datei unter altem Namen, damit Apps bis 2.0.x
+        # (damals "Pico Dashboard") das Update noch finden
+        run: |
+          cp MakerDash-Setup.exe PicoDashboard-Setup.exe
+          sha256sum MakerDash-Setup.exe PicoDashboard-Setup.exe > SHA256SUMS.txt
 
       - name: Release veröffentlichen
         if: steps.v.outputs.skip != 'true'
@@ -68,5 +72,5 @@ jobs:
         run: |
           V="${{ steps.v.outputs.version }}"
           if [ -f "release-notes/v$V.md" ]; then NOTES=(--notes-file "release-notes/v$V.md"); else NOTES=(--generate-notes); fi
-          gh release create "v$V" dist/PicoDashboard-Setup.exe dist/SHA256SUMS.txt \
-            --target "$GITHUB_SHA" --title "Pico Dashboard $V" "${NOTES[@]}"
+          gh release create "v$V" dist/MakerDash-Setup.exe dist/PicoDashboard-Setup.exe dist/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" --title "MakerDash $V" "${NOTES[@]}"

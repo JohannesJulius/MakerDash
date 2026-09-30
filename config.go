@@ -96,7 +96,7 @@ func appDataDir() string {
 	if err != nil {
 		dir = "."
 	}
-	return filepath.Join(dir, "PicoDashboard")
+	return filepath.Join(dir, "MakerDash")
 }
 
 func configPath() string { return filepath.Join(appDataDir(), "config.json") }
@@ -226,7 +226,7 @@ func settingsToml(h Hardware, d Display) string {
 		return 0
 	}
 	lines := []string{
-		"# Pico Dashboard – wird von der App geschrieben. Bitte in der App ändern.",
+		"# MakerDash – wird von der App geschrieben. Bitte in der App ändern.",
 		fmt.Sprintf("DASH_FADER1 = %q", h.Fader1),
 		fmt.Sprintf("DASH_FADER2 = %q", h.Fader2),
 		fmt.Sprintf("DASH_FADER3 = %q", h.Fader3),

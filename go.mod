@@ -1,4 +1,4 @@
-module picodash
+module makerdash
 
 go 1.24.7
 

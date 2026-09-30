@@ -389,7 +389,7 @@ func (m *FirmwareManager) SetupCircuitPython() {
 	target := m.bootsel[0]
 	m.mu.Unlock()
 
-	cacheDir := filepath.Join(os.Getenv("LOCALAPPDATA"), "PicoDashboard", "cache")
+	cacheDir := filepath.Join(os.Getenv("LOCALAPPDATA"), "MakerDash", "cache")
 	os.MkdirAll(cacheDir, 0o755)
 	url := circuitPythonURL(target.Board)
 	file := filepath.Join(cacheDir, path.Base(url))

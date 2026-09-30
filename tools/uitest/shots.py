@@ -3,7 +3,7 @@ from playwright.async_api import async_playwright
 URL = "file://" + __import__("os").path.abspath("../../ui/index.html") + ""
 async def main():
     async with async_playwright() as p:
-        b = await p.chromium.launch()
+        b = await p.chromium.launch(executable_path="/opt/pw-browsers/chromium" if __import__("os").path.exists("/opt/pw-browsers/chromium") else None)
         pg = await b.new_page(viewport={"width": 1180, "height": 780}, device_scale_factor=1)
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))

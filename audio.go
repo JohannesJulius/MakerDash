@@ -288,10 +288,10 @@ func (a *Audio) refresh() {
 }
 
 // processInfo liefert Schlüssel (exe-Name) und lesbaren Namen eines Prozesses.
-var debugLog = os.Getenv("PICODASH_DEBUG") != ""
+var debugLog = os.Getenv("MAKERDASH_DEBUG") != ""
 var debugSeen = map[string]bool{}
 
-// debugf schreibt jede Meldung nur einmal ins Log (nur mit PICODASH_DEBUG oder --debug).
+// debugf schreibt jede Meldung nur einmal ins Log (nur mit MAKERDASH_DEBUG oder --debug).
 func debugf(format string, args ...any) {
 	if !debugLog {
 		return

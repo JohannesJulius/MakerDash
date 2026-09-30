@@ -39,7 +39,7 @@ func webviewDataDir() string {
 	if base == "" {
 		base = appDataDir()
 	}
-	return filepath.Join(base, "PicoDashboard", "WebView2")
+	return filepath.Join(base, "MakerDash", "WebView2")
 }
 
 func main() {
@@ -52,11 +52,12 @@ func main() {
 			debugLog = true
 		}
 	}
+	migrateLegacy()
 	setupLog()
-	log.Printf("Pico Dashboard %s startet", AppVersion)
+	log.Printf("MakerDash %s startet", AppVersion)
 
 	// Nur eine Instanz: eine zweite öffnet einfach das Fenster der ersten
-	if _, err := windows.CreateMutex(nil, false, u16(`Local\PicoDashboardSingleInstance`)); err == windows.ERROR_ALREADY_EXISTS {
+	if _, err := windows.CreateMutex(nil, false, u16(`Local\MakerDashSingleInstance`)); err == windows.ERROR_ALREADY_EXISTS {
 		if h, _, _ := pFindWindowW.Call(uintptr(unsafe.Pointer(u16(msgClassName))), 0); h != 0 {
 			postMessage(h, wmAppShow, 0, 0)
 		}
@@ -71,7 +72,7 @@ func main() {
 
 	loadIcons()
 	if err := createMsgWindow(); err != nil {
-		messageBox(0, "Pico Dashboard konnte nicht gestartet werden:\n"+err.Error(), "Pico Dashboard", mbIconError)
+		messageBox(0, "MakerDash konnte nicht gestartet werden:\n"+err.Error(), "MakerDash", mbIconError)
 		return
 	}
 	trayAdd()

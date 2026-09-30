@@ -1,5 +1,5 @@
-; Pico Dashboard – Installer
-; Bauen:  makensis -DVERSION=2.0.0 -DEXE=..\dist\PicoDashboard.exe -DOUT=..\dist\PicoDashboard-Setup.exe installer\setup.nsi
+; MakerDash – Installer
+; Bauen:  makensis -DVERSION=2.1.0 -DEXE=..\dist\MakerDash.exe -DOUT=..\dist\MakerDash-Setup.exe installer\setup.nsi
 Unicode true
 !include "MUI2.nsh"
 !include "x64.nsh"
@@ -10,20 +10,24 @@ Unicode true
   !define VERSION "0.0.0"
 !endif
 !ifndef EXE
-  !define EXE "..\dist\PicoDashboard.exe"
+  !define EXE "..\dist\MakerDash.exe"
 !endif
 !ifndef OUT
-  !define OUT "..\dist\PicoDashboard-Setup.exe"
+  !define OUT "..\dist\MakerDash-Setup.exe"
 !endif
 
-!define APPNAME "Pico Dashboard"
-!define APPEXE "PicoDashboard.exe"
-!define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\PicoDashboard"
+!define APPNAME "MakerDash"
+!define APPEXE "MakerDash.exe"
+!define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\MakerDash"
+; bis Version 2.0.x hieß die App "Pico Dashboard"
+!define OLDNAME "Pico Dashboard"
+!define OLDEXE "PicoDashboard.exe"
+!define OLDKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\PicoDashboard"
 !define RUNKEY "Software\Microsoft\Windows\CurrentVersion\Run"
 
 Name "${APPNAME}"
 OutFile "${OUT}"
-InstallDir "$PROGRAMFILES64\PicoDashboard"
+InstallDir "$PROGRAMFILES64\MakerDash"
 InstallDirRegKey HKLM "${UNINSTKEY}" "InstallLocation"
 RequestExecutionLevel admin
 SetCompressor /SOLID lzma
@@ -93,18 +97,36 @@ FunctionEnd
 Section "Programm" SecMain
   SectionIn RO
   nsExec::Exec 'taskkill /F /IM ${APPEXE}'
+  nsExec::Exec 'taskkill /F /IM ${OLDEXE}'
   Sleep 800
 
   SetOutPath "$INSTDIR"
   File "${EXE}"
   File "..\icon.ico"
 
-  ; Reste der Version 1 entfernen (Pico-Dateien werden jetzt von der App verwaltet)
-  RMDir /r "$INSTDIR\Pico-Dateien"
-  Delete "$INSTDIR\ANLEITUNG.txt"
-  Delete "$SMPROGRAMS\${APPNAME}\Einstellungen.lnk"
-  Delete "$SMPROGRAMS\${APPNAME}\Pico-Dateien.lnk"
-  Delete "$SMPROGRAMS\${APPNAME}\Anleitung.lnk"
+  ; Alte Installation "Pico Dashboard" entfernen (Einstellungen übernimmt die App selbst)
+  ReadRegStr $0 HKLM "${OLDKEY}" "InstallLocation"
+  ${If} $0 != ""
+  ${AndIf} $0 != $INSTDIR
+    Delete "$0\${OLDEXE}"
+    Delete "$0\icon.ico"
+    Delete "$0\ANLEITUNG.txt"
+    Delete "$0\Uninstall.exe"
+    RMDir /r "$0\Pico-Dateien"
+    RMDir "$0"
+  ${EndIf}
+  DeleteRegKey HKLM "${OLDKEY}"
+  RMDir /r "$SMPROGRAMS\${OLDNAME}"
+  ${If} ${FileExists} "$DESKTOP\${OLDNAME}.lnk"
+    Delete "$DESKTOP\${OLDNAME}.lnk"
+    CreateShortcut "$DESKTOP\${APPNAME}.lnk" "$INSTDIR\${APPEXE}" "--open" "$INSTDIR\icon.ico"
+  ${EndIf}
+  ReadRegStr $1 HKCU "${RUNKEY}" "PicoDashboard"
+  ${If} $1 != ""
+    DeleteRegValue HKCU "${RUNKEY}" "MakerDash"
+    WriteRegStr HKCU "${RUNKEY}" "MakerDash" '"$INSTDIR\${APPEXE}"'
+  ${EndIf}
+  RMDir /r "$LOCALAPPDATA\PicoDashboard"
 
   CreateDirectory "$SMPROGRAMS\${APPNAME}"
   CreateShortcut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\${APPEXE}" "--open" "$INSTDIR\icon.ico"
@@ -129,7 +151,7 @@ SectionEnd
 Section "Mit Windows starten" SecAutostart
   ; Bei automatischen Updates die Einstellung des Benutzers nicht überschreiben
   ${If} $IsUpdate == "0"
-    WriteRegStr HKCU "${RUNKEY}" "PicoDashboard" '"$INSTDIR\${APPEXE}"'
+    WriteRegStr HKCU "${RUNKEY}" "MakerDash" '"$INSTDIR\${APPEXE}"'
   ${EndIf}
 SectionEnd
 
@@ -149,7 +171,7 @@ LangString DESC_Desk ${LANG_GERMAN} "Legt eine Verknüpfung auf dem Desktop an."
 Section "Uninstall"
   nsExec::Exec 'taskkill /F /IM ${APPEXE}'
   Sleep 800
-  DeleteRegValue HKCU "${RUNKEY}" "PicoDashboard"
+  DeleteRegValue HKCU "${RUNKEY}" "MakerDash"
   Delete "$DESKTOP\${APPNAME}.lnk"
   RMDir /r "$SMPROGRAMS\${APPNAME}"
   RMDir /r "$INSTDIR\Pico-Dateien"
@@ -160,6 +182,6 @@ Section "Uninstall"
   SetOutPath "$TEMP"
   RMDir "$INSTDIR"
   ; Zwischenspeicher (WebView2, Downloads) entfernen – Einstellungen in %APPDATA% bleiben erhalten
-  RMDir /r "$LOCALAPPDATA\PicoDashboard"
+  RMDir /r "$LOCALAPPDATA\MakerDash"
   DeleteRegKey HKLM "${UNINSTKEY}"
 SectionEnd
