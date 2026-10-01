@@ -14,6 +14,9 @@ und 0,96"-OLED (SSD1306) steuert Windows-Lautstärken. Sprache mit dem Nutzer: *
   Laufwerk geschrieben). `FW_VERSION` in `firmware/code.py` erhöhen, wenn sich die Firmware ändert.
   Pins/Anzeige kommen aus `settings.toml`, das die App schreibt.
 - Protokoll Pico <-> PC: Kommentar oben in `core.go`.
+- `hardware/panel/` – Panel-Platine v1.0 (KiCad 7, per Skript erzeugt: `build.sh <freerouting.jar>`;
+  AVR64DD28 als I2C-Target 0x30, 16 Universal-Kanäle, Pico braucht nur noch I2C). Firmware für den
+  AVR und die Anbindung in Pico-Firmware/App fehlen noch.
 - `installer/setup.nsi` – NSIS-Installer (`/S /UPDATE` = stilles Update durch die App).
 
 ## Release

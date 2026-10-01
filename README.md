@@ -62,6 +62,7 @@ aktualisiert die App danach auch das Dashboard.
 | `ui/index.html` | Oberfläche (läuft in WebView2) |
 | `firmware/` | Pico-Firmware (CircuitPython), wird in die App eingebettet |
 | `installer/` | NSIS-Installer |
+| `hardware/panel/` | Panel-Platine (KiCad): Fader, Drehgeber, Display über I2C an den Pico |
 
 Lokal bauen (Linux oder Windows, Go ≥ 1.24):
 
