@@ -87,6 +87,8 @@ Display in J3.
 
 ## Platine bestellen
 
+Bestellliste mit Teilenummern: [BESTELLLISTE.md](BESTELLLISTE.md).
+
 `makerdash-panel-gerber.zip` bei einem Platinenhersteller hochladen, z. B. JLCPCB, PCBWay oder
 Aisler. Einstellungen: 2 Lagen, 1,6 mm, keine Bestückung. Die Datei enthält Kupfer, Lötstopp,
 Bestückungsdruck, Kontur und Bohrdaten.
