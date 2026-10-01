@@ -42,7 +42,9 @@ func TestVersions(t *testing.T) {
 }
 
 func TestFirmwareFiles(t *testing.T) {
-	if bundledFirmware != "2.0.0" {
+	// muss FW_VERSION aus firmware/code.py entsprechen
+	code, _ := os.ReadFile(filepath.Join("firmware", "code.py"))
+	if bundledFirmware == "" || !strings.Contains(string(code), `FW_VERSION = "`+bundledFirmware+`"`) {
 		t.Fatalf("bundled = %q", bundledFirmware)
 	}
 	files := firmwareFiles()

@@ -48,6 +48,13 @@ simulierte Firmware über ein pty (socat) mit der echten .exe unter Wine.
   Tabelle `KORREKTUR`; Schriftwechsel/Verschieben nur über `schrift_setzen`/`platzieren`.
   Prüfung mit echten Bibliotheken: `python3 tools/picosim/test_labels.py`
   (braucht `pip install adafruit-blinka-displayio`; `sim.py` bildet diesen Fehler NICHT ab).
+- 2.2.0: Gruppen (`Config.Groups`, Ziel `group:<id>`), alle Fader frei belegbar, Ziel `focus`
+  (Vordergrundfenster), Stummschalten per langem Druck (Pico sendet `MUTE`, PC meldet
+  `MUTE\t0/1\t<name>`, Ziel `Config.MuteTarget`). Logik in `targets.go`, Tests in
+  `targets_test.go`. Kurzer Druck wirkt jetzt beim Loslassen. **Nicht auf echter Hardware geprüft.**
+- `tools/picosim/sim.py` nutzt die echten Adafruit-Bibliotheken, wenn Blinka installiert ist
+  (`pip install adafruit-blinka-displayio`) – dann sind die Bilder pixelgenau; `SIM_FAKE=1` erzwingt
+  die alte Nachbildung. Wine ist per `apt-get install wine64` installierbar.
 - Repository heißt jetzt `JohannesJulius/MakerDash` (alte Adresse wird weitergeleitet).
 - Noch ungetestet auf echter Hardware: Programmliste (Audio-Sitzungen), Standardgerät umschalten,
   Einrichtung eines neuen Pico im BOOTSEL-Modus.

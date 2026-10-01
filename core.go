@@ -6,9 +6,12 @@ package main
 //
 //   PC -> Pico:  PING | SYNC | APPS\t<name>... | OUTS\t<idx>\t<name>... | INS\t<idx>\t<name>...
 //                F3\t<name>[\t<sperren 0/1>] | LABELS\t<f1>\t<f2>\t<f3> | CFG\t<k>\t<v>...
+//                MUTE\t<0/1>\t<name> (ab Firmware 2.2)
 //                UPDATING | PROGRESS\t<0-100> | UPDATE_ABORT | REBOOT
 //   Pico -> PC:  PONG\tDASH\t<proto>\t<version>\t<boot ok> | F\t<1-3>\t<0-1000>
-//                SETAPP\t<name> | SETOUT\t<name> | SETIN\t<name>
+//                SETAPP\t<name> | SETOUT\t<name> | SETIN\t<name> | MUTE (langer Druck, ab Firmware 2.2)
+//
+//   APPS enthält für das Menü "Fader 3" zuerst die Gruppen, dann die Programme, zuletzt "Aktives Fenster".
 
 import (
 	"fmt"
@@ -128,38 +131,21 @@ func deviceMenu(devs []DevInfo, def string, c *Config) (items []menuItem, cur in
 	return
 }
 
-// fader3Name liefert den Anzeigenamen des Programms auf Fader 3.
-func fader3Name(st AudioState, c *Config) string {
-	if c.Fader3App == "" {
-		return "-"
-	}
-	for _, a := range st.Apps {
-		if a.Key == c.Fader3App {
-			return sanitize(appDisplayName(a, c))
-		}
-	}
-	if ic := c.Apps[c.Fader3App]; ic != nil {
-		if ic.Alias != "" {
-			return sanitize(ic.Alias)
-		}
-		if ic.Name != "" {
-			return sanitize(ic.Name)
-		}
-	}
-	return sanitize(strings.TrimSuffix(c.Fader3App, ".exe"))
-}
-
 func buildMenus(st AudioState, c *Config) (m menus) {
 	used := map[string]bool{}
+	for _, g := range c.Groups {
+		m.apps = append(m.apps, menuItem{uniqueName(sanitize(g.Name), used), "group:" + g.ID})
+	}
 	for _, a := range st.Apps {
 		if ic := c.Apps[a.Key]; ic != nil && ic.Hidden {
 			continue
 		}
 		m.apps = append(m.apps, menuItem{uniqueName(sanitize(appDisplayName(a, c)), used), a.Key})
 	}
+	m.apps = append(m.apps, menuItem{uniqueName(focusLabel, used), "focus"})
 	m.outs, m.curOut = deviceMenu(st.Outputs, st.DefaultOut, c)
 	m.ins, m.curIn = deviceMenu(st.Inputs, st.DefaultIn, c)
-	m.f3 = fader3Name(st, c)
+	m.f3 = targetLabel(st, c, fader3Target(c))
 	for _, a := range m.apps {
 		if a.Key == c.Fader3App {
 			m.f3 = a.Name // gleicher Name wie im Menü (auch bei Dubletten)
@@ -204,16 +190,15 @@ func listLine(cmd string, cur int, items []menuItem) string {
 	return b.String()
 }
 
-var targetLabels = map[string]string{"master": "System", "mic": "Mikrofon", "none": "-"}
-
 // pushToPico schickt Listen und Beschriftungen (nur bei Änderung oder force).
 func pushToPico(force bool) {
 	st := audio.State()
 	var m menus
-	var f1, f2 string
+	var f1, f2, mute string
 	withConfig(func(c *Config) {
 		m = buildMenus(st, c)
-		f1, f2 = targetLabels[c.Fader1], targetLabels[c.Fader2]
+		f1, f2 = targetLabel(st, c, c.Fader1), targetLabel(st, c, c.Fader2)
+		mute = muteLine(st, c)
 	}, false)
 	lines := []string{
 		listLine("APPS", -2, m.apps),
@@ -221,6 +206,7 @@ func pushToPico(force bool) {
 		listLine("INS", m.curIn, m.ins),
 		"F3\t" + m.f3,
 		"LABELS\t" + f1 + "\t" + f2 + "\t" + m.f3,
+		mute,
 	}
 	all := strings.Join(lines, "\n")
 	menuMu.Lock()
@@ -245,29 +231,13 @@ func sendDisplayCfg() {
 	link.Send(fmt.Sprintf("CFG\tbrightness\t%d\tsaver\t%d\toverlay\t%d", d.Brightness, d.Saver, ov))
 }
 
-func faderTarget(n int) string {
-	var t string
-	withConfig(func(c *Config) {
-		switch n {
-		case 1:
-			t = c.Fader1
-		case 2:
-			t = c.Fader2
-		case 3:
-			if c.Fader3App != "" {
-				t = "app:" + c.Fader3App
-			}
-		}
-	}, false)
-	if t == "none" {
-		return ""
-	}
-	return t
-}
-
 // setFader3App wird von der Oberfläche oder vom Dashboard-Menü aufgerufen.
 func setFader3App(key string, fromUI bool) {
 	withConfig(func(c *Config) { c.Fader3App = key }, true)
+	// Das Dashboard sperrt Fader 3, bis er ganz unten war – bis dahin gilt die alte Stellung nicht
+	faderMu.Lock()
+	faderValues[2] = -1
+	faderMu.Unlock()
 	if fromUI {
 		var name string
 		st := audio.State()
@@ -305,15 +275,15 @@ func handleLine(line string) {
 		faderValues[n-1] = v
 		faderMu.Unlock()
 		levelsDirty()
-		if t := faderTarget(n); t != "" {
-			audio.SetVolume(t, float32(v)/1000)
-		}
+		setTargetVolume(n, v)
 	case "SETAPP":
 		if len(f) > 1 {
 			if key := lookup(lastApps, f[1]); key != "" {
 				setFader3App(key, false)
 			}
 		}
+	case "MUTE":
+		toggleMute()
 	case "SETOUT":
 		if len(f) > 1 {
 			if id := lookup(lastOuts, f[1]); id != "" {

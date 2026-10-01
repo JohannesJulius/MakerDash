@@ -122,6 +122,16 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;b
 .fader .sel{width:100%}
 .fader .bar{height:10px}
 .fader .bar i{transition:width .08s linear}
+.groups{display:grid;gap:12px}
+.grp{border:1px solid var(--line);border-radius:14px;padding:14px;background:#141922}
+.grp .gh{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.grp .gh .inp{flex:1;max-width:280px;font-weight:600}
+.grp .gh .muted{font-size:12px;flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{height:30px;padding:0 12px;border-radius:16px;border:1px solid var(--line2);background:#10141b;color:var(--muted);cursor:pointer;font:inherit;font-size:12.5px;display:inline-flex;align-items:center;gap:6px}
+.chip:hover{border-color:#3a4356;color:var(--text,#e6e9f0)}
+.chip.on{background:rgba(124,92,255,.18);border-color:var(--accent);color:#fff}
+.chip i{width:6px;height:6px;border-radius:50%;background:var(--ok)}
 .quick{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .quick .card{display:flex;align-items:center;gap:14px}
 .quick .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:#1c2230;flex:none}
@@ -240,7 +250,14 @@ kbd{background:#222838;border:1px solid var(--line2);border-bottom-width:2px;bor
 
     <!-- Programme -->
     <section class="page" id="p-apps">
-      <div class="head"><div><h1>Programme</h1><p>Welche Programme im Menü „Fader 3“ erscheinen und wie sie auf dem Display heißen</p></div></div>
+      <div class="head"><div><h1>Programme</h1><p>Gruppen bilden, Programme im Menü „Fader 3“ zeigen und auf dem Display benennen</p></div></div>
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div><h3 style="margin:0">Gruppen</h3><p class="sub" style="margin:4px 0 0">Mehrere Programme auf einem Fader – z. B. alle Spiele oder Musik und Browser zusammen</p></div>
+          <button class="btn small" id="addGroup">+ Neue Gruppe</button>
+        </div>
+        <div class="groups mt" id="groupList"></div>
+      </div>
       <div class="toolbar"><input class="inp" id="appSearch" placeholder="Suchen …"></div>
       <div class="card list" id="appList"></div>
     </section>
@@ -260,6 +277,7 @@ kbd{background:#222838;border:1px solid var(--line2);border-bottom-width:2px;bor
         <div class="row"><div class="lbl"><b>Helligkeit</b><small>Helligkeit des OLED-Displays</small></div><span class="muted" id="brV" style="width:44px;text-align:right"></span><input type="range" id="br" min="5" max="100" step="5"></div>
         <div class="row"><div class="lbl"><b>Bildschirmschoner</b><small>Zeigt ein gedimmtes, wanderndes Logo, wenn nichts passiert – schützt vor Einbrennen</small></div><div class="sel"><select id="saver"><option value="0">Aus</option><option value="60">Nach 1 Minute</option><option value="300">Nach 5 Minuten</option><option value="600">Nach 10 Minuten</option><option value="1800">Nach 30 Minuten</option><option value="3600">Nach 1 Stunde</option></select></div></div>
         <div class="row"><div class="lbl"><b>Lautstärke-Anzeige</b><small>Beim Bewegen eines Faders kurz Name und Prozent einblenden</small></div><label class="tg"><input type="checkbox" id="ov"><span></span></label></div>
+        <div class="row"><div class="lbl"><b>Langer Druck auf den Drehgeber</b><small>Schaltet stumm bzw. wieder ein – das Display zeigt es oben rechts an</small></div><div class="sel"><select id="muteT"></select></div></div>
         <div class="row"><div class="lbl"><b>Start-Animation</b><small>Logo beim Einschalten des Dashboards</small></div><label class="tg"><input type="checkbox" id="anim"><span></span></label></div>
       </div>
 
@@ -477,6 +495,30 @@ function fwBadge() {
   }
   return `<span class="badge ok"><i class="d"></i>Verbunden</span>`;
 }
+// ---------- Fader-Ziele ----------
+// Fader 1/2 speichern "app:<exe>", Fader 3 (historisch) nur "<exe>"; Gruppen "group:<id>", "focus" = aktives Fenster
+const f3AsTarget = v => !v ? "none" : (v === "focus" || v.startsWith("group:")) ? v : "app:" + v;
+function targetKind(t) {
+  if (!t) return "";
+  if (t.startsWith("group:")) return "Gruppe";
+  if (t.startsWith("app:")) return "Programm";
+  if (t === "focus") return "Aktives Fenster";
+  return "";
+}
+function targetSelect(val, f3) {
+  const appVal = k => f3 ? k : "app:" + k;
+  const cur = f3 ? f3AsTarget(val) : val;
+  const opt = (v, t) => `<option value="${esc(v)}" ${v === val ? "selected" : ""}>${esc(t)}</option>`;
+  let h = f3 ? (val ? "" : opt("", "– Ziel wählen –")) : opt("master", "Systemlautstärke") + opt("mic", "Mikrofon");
+  h += opt("focus", "Aktives Fenster");
+  if (S.groups.length) h += `<optgroup label="Gruppen">${S.groups.map(g => opt("group:" + g.id, g.name)).join("")}</optgroup>`;
+  const apps = S.apps.filter(a => a.active || "app:" + a.key === cur);
+  if (cur.startsWith("app:") && !apps.some(a => "app:" + a.key === cur)) apps.unshift({key: cur.slice(4), name: f3 ? S.f3 : cur.slice(4)});
+  if (apps.length) h += `<optgroup label="Programme">${apps.map(a => opt(appVal(a.key), (a.alias || a.name) + (a.active ? "" : " (läuft nicht)"))).join("")}</optgroup>`;
+  if (!f3) h += opt("none", "Nicht belegt");
+  return h;
+}
+
 function renderOverview() {
   patch($("#devArt"), deviceArt());
   const c = S.conn;
@@ -487,6 +529,7 @@ function renderOverview() {
   const kv = [];
   if (c.connected) kv.push(["Anschluss", c.port], ["Firmware", c.firmware + (S.firmware.state === "outdated" ? ` → ${S.firmware.bundled}` : "")]);
   kv.push(["Ausgabe", out ? (out.alias || out.name) : "–"], ["Mikrofon", mic ? (mic.alias || mic.name) : "–"]);
+  kv.push(["Langer Druck", `${S.mute.label} · ${S.mute.on ? "stumm" : "an"}`]);
   patch($("#heroKV"), kv.map(([k, v]) => `<span>${k}</span><div>${esc(v)}</div>`).join(""));
   let act = "";
   if (!c.connected && (S.drives.bootsel || S.drives.circuitpy)) act = `<button class="btn primary" data-act="wiz">Jetzt einrichten</button>`;
@@ -494,14 +537,12 @@ function renderOverview() {
   else if (S.firmware.state === "error") act = `<div class="errbox">${ICON.alert}<div>${esc(S.firmware.message)}</div></div>`;
   patch($("#heroAct"), act);
 
-  const tgt = [["master", "Systemlautstärke"], ["mic", "Mikrofon"], ["none", "Nicht belegt"]];
-  const apps = S.apps.filter(a => a.active || a.key === S.f3Key);
-  if (S.f3Key && !apps.some(a => a.key === S.f3Key)) apps.unshift({key: S.f3Key, name: S.f3});
-  const appOpts = [["", "– Programm wählen –"], ...apps.map(a => [a.key, (a.alias || a.name) + (a.active ? "" : " (läuft nicht)")])];
   const cards = [0, 1, 2].map(i => {
-    const sel = i < 2 ? `<div class="sel"><select data-fader="${i+1}">${selectHTML(tgt, i === 0 ? S.config.fader1 : S.config.fader2)}</select></div>`
-                      : `<div class="sel"><select id="f3sel">${selectHTML(appOpts, S.f3Key)}</select></div>`;
-    return `<div class="card fader"><div class="top"><span class="num">Fader ${i+1}</span>${i === 2 ? '<span class="badge acc">Programm</span>' : ""}</div>${sel}
+    const val = i === 0 ? S.config.fader1 : i === 1 ? S.config.fader2 : S.f3Key;
+    const sel = i < 2 ? `<div class="sel"><select data-fader="${i+1}">${targetSelect(val, false)}</select></div>`
+                      : `<div class="sel"><select id="f3sel">${targetSelect(val, true)}</select></div>`;
+    const kind = targetKind(i < 2 ? val : f3AsTarget(val));
+    return `<div class="card fader"><div class="top"><span class="num">Fader ${i+1}</span>${kind ? `<span class="badge acc">${kind}</span>` : ""}</div>${sel}
       <div class="pct" id="fp${i}">${pct(LV[i])}${LV[i] < 0 ? "" : "<small>%</small>"}</div><div class="bar"><i id="fb${i}" style="width:${LV[i] < 0 ? 0 : LV[i]/10}%"></i></div></div>`;
   });
   patch($("#faders"), cards.join(""));
@@ -529,7 +570,37 @@ document.addEventListener("click", e => {
 });
 
 // ---------- Programme ----------
+function renderGroups() {
+  const apps = S.apps.filter(a => !a.hidden || S.groups.some(g => g.apps.includes(a.key)));
+  const html = S.groups.length ? S.groups.map(g => `<div class="grp" data-gid="${esc(g.id)}">
+      <div class="gh"><input class="inp" data-gname value="${esc(g.name)}" maxlength="24" title="Name der Gruppe (so steht sie auf dem Display)">
+        <span class="muted">${g.apps.length ? `${g.apps.length} Programm${g.apps.length === 1 ? "" : "e"}${g.active ? " · spielt Ton ab" : ""}` : "Programme unten antippen, um sie hinzuzufügen"}</span>
+        <button class="iconbtn" data-gdel title="Gruppe löschen">${ICON.trash}</button></div>
+      <div class="chips">${apps.map(a => `<button class="chip ${g.apps.includes(a.key) ? "on" : ""}" data-app="${esc(a.key)}">${a.active ? "<i></i>" : ""}${esc(a.alias || a.name)}</button>`).join("") || '<span class="dim">Noch keine Programme bekannt – sobald ein Programm Ton abspielt, erscheint es hier.</span>'}</div>
+    </div>`).join("")
+    : `<div class="dim" style="font-size:13px">Noch keine Gruppen. Eine Gruppe erscheint am Dashboard im Menü „Fader 3“ und lässt sich auch Fader 1 oder 2 zuweisen.</div>`;
+  patch($("#groupList"), html);
+}
+$("#groupList").dataset.patch = 1;
+$("#addGroup").addEventListener("click", () => send("addGroup", {value: ""}));
+$("#groupList").addEventListener("change", e => {
+  const g = e.target.closest(".grp"); if (g && e.target.matches("[data-gname]")) send("setGroup", {key: g.dataset.gid, value: e.target.value});
+});
+$("#groupList").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches("[data-gname]")) e.target.blur(); });
+$("#groupList").addEventListener("click", e => {
+  const g = e.target.closest(".grp"); if (!g) return;
+  const grp = S.groups.find(x => x.id === g.dataset.gid); if (!grp) return;
+  const chip = e.target.closest("[data-app]");
+  if (chip) {
+    const k = chip.dataset.app, apps = grp.apps.includes(k) ? grp.apps.filter(x => x !== k) : [...grp.apps, k];
+    grp.apps = apps; chip.classList.toggle("on", apps.includes(k));
+    send("setGroup", {key: grp.id, apps});
+  }
+  if (e.target.closest("[data-gdel]")) send("deleteGroup", {key: grp.id});
+});
+
 function renderApps() {
+  renderGroups();
   const q = $("#appSearch").value.trim().toLowerCase();
   const list = S.apps.filter(a => !q || (a.alias + " " + a.name + " " + a.key).toLowerCase().includes(q));
   const html = list.length ? list.map(a => `<div class="item ${a.hidden ? "off" : ""}" data-key="${esc(a.key)}">
@@ -592,6 +663,11 @@ function renderDeviceSettings() {
   br.style.setProperty("--p", (br.value - 5) / 95 * 100 + "%"); $("#brV").textContent = br.value + " %";
   if (document.activeElement !== $("#saver")) $("#saver").value = String(d.saver);
   $("#ov").checked = d.overlay; $("#anim").checked = d.animation;
+  const mt = $("#muteT");
+  const fl = i => { const v = i === 3 ? f3AsTarget(S.f3Key) : S.config["fader" + i]; return `Fader ${i}` + (v && v !== "none" ? "" : " (nicht belegt)"); };
+  const mh = selectHTML([["mic", "Mikrofon"], ["master", "Systemlautstärke"], ["fader1", fl(1)], ["fader2", fl(2)], ["fader3", fl(3)], ["focus", "Aktives Fenster"],
+                         ...S.groups.map(g => ["group:" + g.id, "Gruppe: " + g.name])], S.mute.target);
+  if (document.activeElement !== mt && mt._h !== mh) { mt.innerHTML = mh; mt._h = mh; }
 
   if (!hwDraft) hwDraft = JSON.parse(JSON.stringify(S.config.hardware));
   const h = hwDraft, bad = hwDupes(h);
@@ -623,6 +699,7 @@ let brTimer;
 $("#br").addEventListener("input", e => { e.target.style.setProperty("--p", (e.target.value - 5) / 95 * 100 + "%"); $("#brV").textContent = e.target.value + " %"; clearTimeout(brTimer); brTimer = setTimeout(sendDisplay, 120); });
 const sendDisplay = () => send("setDisplay", {display: {brightness: +$("#br").value, saver: +$("#saver").value, overlay: $("#ov").checked, animation: $("#anim").checked}});
 ["#saver", "#ov", "#anim"].forEach(s => $(s).addEventListener("change", sendDisplay));
+$("#muteT").addEventListener("change", e => send("setMuteTarget", {target: e.target.value}));
 $("#pins").addEventListener("change", e => { const k = e.target.dataset.pin; if (k) { hwDraft[k] = e.target.value; $("#pins")._html = null; renderDeviceSettings(); } });
 $("#invs").addEventListener("change", e => {
   if (e.target.dataset.inv !== undefined) { const i = +e.target.dataset.inv, a = hwDraft.invert.split(""); a[i] = e.target.checked ? "1" : "0"; hwDraft.invert = a.join(""); }
@@ -783,12 +860,15 @@ if (!hasBridge) {
     setup: {state: "idle", progress: 0, message: ""},
     drives: {circuitpy: "E:\\", bootsel: "", board: ""}, cpVersion: "10.3.1",
     faders: [720, 450, 300], f3: "Spotify", f3Key: "spotify.exe",
+    groups: [{id: "g1", name: "Spiele", apps: ["cs2.exe", "steamwebhelper.exe"], active: true}, {id: "g2", name: "Musik", apps: ["spotify.exe", "chrome.exe"], active: true}],
+    mute: {target: "mic", label: "Mikrofon", on: false},
     apps: [{key: "spotify.exe", name: "Spotify", alias: "", hidden: false, active: true}, {key: "discord.exe", name: "Discord", alias: "", hidden: false, active: true},
-           {key: "chrome.exe", name: "Google Chrome", alias: "Chrome", hidden: false, active: true}, {key: "steamwebhelper.exe", name: "Steam Client WebHelper", alias: "", hidden: true, active: false}],
+           {key: "chrome.exe", name: "Google Chrome", alias: "Chrome", hidden: false, active: true}, {key: "steamwebhelper.exe", name: "Steam Client WebHelper", alias: "", hidden: true, active: false},
+           {key: "cs2.exe", name: "Counter-Strike 2", alias: "CS2", hidden: false, active: true}],
     outputs: [{key: "o1", name: "Lautsprecher", full: "Lautsprecher (Realtek(R) Audio)", alias: "Boxen", hidden: false, active: true, isDefault: true},
               {key: "o2", name: "Headset", full: "Headset (Arctis Nova 7)", alias: "", hidden: false, active: true}, {key: "o3", name: "LG ULTRAGEAR", full: "LG ULTRAGEAR (NVIDIA High Definition Audio)", alias: "", hidden: true, active: true}],
     inputs: [{key: "i1", name: "Mikrofon", full: "Mikrofon (Shure MV7)", alias: "MV7", hidden: false, active: true, isDefault: true}, {key: "i2", name: "Headset-Mikrofon", full: "Headset-Mikrofon (Arctis Nova 7)", alias: "", hidden: false, active: true}],
-    config: {fader1: "master", fader2: "mic", hardware: {fader1: "GP28", fader2: "GP27", fader3: "GP26", invert: "000", encA: "GP10", encB: "GP11", encSW: "GP12", encDivisor: 4, encReverse: false, sda: "GP4", scl: "GP5"},
+    config: {fader1: "master", fader2: "group:g1", hardware: {fader1: "GP28", fader2: "GP27", fader3: "GP26", invert: "000", encA: "GP10", encB: "GP11", encSW: "GP12", encDivisor: 4, encReverse: false, sda: "GP4", scl: "GP5"},
              display: {brightness: 80, saver: 300, overlay: true, animation: true}, autostart: true, autoUpdate: true, autoFirmware: true, port: "", setupDone: true, updateRepo: ""},
     update: {state: "available", current: "2.0.0", latest: "2.1.0", notes: "## Neu\n- **Mute** per Langdruck\n- Schnellere Verbindung\n\n## Behoben\n- Umlaute in Gerätenamen", progress: 0, error: "", lastCheck: "30.09.2026 13:05", repo: "JohannesJulius/makerdash", url: "https://github.com/JohannesJulius/makerdash/releases"},
     pins: Array.from({length: 23}, (_, i) => "GP" + i).concat(["GP26", "GP27", "GP28"]),

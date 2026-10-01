@@ -19,6 +19,13 @@ type ItemCfg struct {
 	Kind   string `json:"kind,omitempty"` // Geräte: "out" oder "in"
 }
 
+// Group fasst mehrere Programme zusammen, die ein Fader gemeinsam regelt (wie Kanäle in Wave Link).
+type Group struct {
+	ID   string   `json:"id"`
+	Name string   `json:"name"`
+	Apps []string `json:"apps"` // exe-Schlüssel
+}
+
 // Hardware beschreibt die Verdrahtung des Dashboards (landet in settings.toml).
 type Hardware struct {
 	Fader1     string `json:"fader1"`
@@ -43,13 +50,17 @@ type Display struct {
 }
 
 type Config struct {
-	Version   int                 `json:"version"`
-	Fader1    string              `json:"fader1"` // "master", "mic", "none"
-	Fader2    string              `json:"fader2"`
-	Fader3App string              `json:"fader3App"`
-	Apps      map[string]*ItemCfg `json:"apps"`
-	Devices   map[string]*ItemCfg `json:"devices"`
-	Port      string              `json:"port"`
+	Version int `json:"version"`
+	// Fader-Ziele: "master", "mic", "none", "focus" (aktives Fenster), "app:<exe>", "group:<id>".
+	// Fader3App ist aus Kompatibilität ohne "app:" gespeichert (exe, "group:<id>" oder "focus").
+	Fader1     string              `json:"fader1"`
+	Fader2     string              `json:"fader2"`
+	Fader3App  string              `json:"fader3App"`
+	Groups     []*Group            `json:"groups,omitempty"`
+	MuteTarget string              `json:"muteTarget,omitempty"` // Langer Druck auf den Drehgeber; "" = Mikrofon
+	Apps       map[string]*ItemCfg `json:"apps"`
+	Devices    map[string]*ItemCfg `json:"devices"`
+	Port       string              `json:"port"`
 
 	Hardware Hardware `json:"hardware"`
 	Display  Display  `json:"display"`

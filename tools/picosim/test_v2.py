@@ -24,6 +24,12 @@ def steps():
     fader("GP26", 0.35); yield 0.4; shot("7 gesperrt: Overlay 'ganz runter'")
     fader("GP26", 0.0); yield 0.5; shot("8 entsperrt")
     yield 2.2
+    pc("PING"); pc("APPS\tSpiele\tMusik\tSpotify\tDiscord\tAktives Fenster"); pc("MUTE\t0\tMikrofon")
+    press(); yield 0.1; press(); yield 0.1; turn(-1); yield 0.1; shot("8a Fader-3-Menue mit Gruppen")
+    turn(-10); press(); yield 0.1; turn(-1); press(); yield 0.1
+    KEYQ.append(_Ev(True)); yield 1.0; KEYQ.append(_Ev(False)); yield 0.1
+    pc("MUTE\t1\tMikrofon"); yield 0.2; shot("8b langer Druck -> stumm")
+    yield 2; shot("8c Startbild mit Stumm-Anzeige")
     yield 20.5; shot("9 Schoner")
     yield 3; shot("10 Schoner, 3 s spaeter")
     press(); yield 0.2; shot("11 geweckt (Druck verschluckt)")
@@ -42,7 +48,9 @@ try:
     sim.run("../../firmware/code.py", Scen())
 except sim.Reset:
     print("REBOOT ausgelöst -> microcontroller.reset()")
-print([l for l in "".join(ser.tx).split("\n") if not l.startswith("F\t")][:10])
+tx = [l for l in "".join(ser.tx).split("\n") if not l.startswith("F\t")]
+print(tx[:10])
+assert tx.count("MUTE") == 1, tx
 print("autoreload:", sim.sup.runtime.autoreload)
 from PIL import Image, ImageDraw
 W, H = 532, 286; cols = 3; rows = (len(shots) + 2) // 3

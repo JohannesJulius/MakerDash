@@ -47,6 +47,8 @@ var (
 	pSystemParametersInfoW    = user32.NewProc("SystemParametersInfoW")
 	pFindWindowW              = user32.NewProc("FindWindowW")
 	pGetSystemMetrics         = user32.NewProc("GetSystemMetrics")
+	pGetForegroundWindow      = user32.NewProc("GetForegroundWindow")
+	pGetWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
 	pShellNotifyIconW         = shell32.NewProc("Shell_NotifyIconW")
 	pDwmSetWindowAttribute    = dwmapi.NewProc("DwmSetWindowAttribute")
 	pCreateSolidBrush         = gdi32.NewProc("CreateSolidBrush")

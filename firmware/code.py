@@ -3,7 +3,7 @@
 # Diese Datei wird von der App "MakerDash" installiert und aktualisiert.
 # Einstellungen (Pins usw.) stehen in settings.toml und werden in der App geändert.
 
-FW_VERSION = "2.1.1"
+FW_VERSION = "2.2.0"
 PROTO = 2
 BOOT_MARKER = "DASHBOOT 2"
 
@@ -72,6 +72,7 @@ BLINK_SEKUNDEN = 0.4
 MENU_TIMEOUT = 15
 PC_TIMEOUT = 8
 OVERLAY_SEK = 1.5
+LANG_SEK = 0.7             # so lange gedrückt halten = Stummschalten
 AKTIV_SCHWELLE = 15         # so viel muss sich ein Fader bewegen, um als Bedienung zu zählen
 
 # ======================= Hardware =======================
@@ -270,12 +271,16 @@ def schrift_setzen(lbl, font, t):
 start = displayio.Group()
 lbl_titel = text(terminalio.FONT, "Fader 3", (0, 0), (0, 0))
 lbl_pc = text(terminalio.FONT, "", (1, 0), (127, 0))
+# Stumm-Anzeige oben rechts: schwarze Schrift auf weißem Feld
+mute_bg = rechteck(1, 11, 0, 0)
+mute_bg.hidden = True
+lbl_mute = text(terminalio.FONT, "", (1, 0), (125, 0), farbe=SCHWARZ)
 lbl_name = text(FONT_GROSS, "", (0, 0.5), (0, 27))
 ico_ausgabe = icon(ICON_LAUTSPRECHER, 0, 51)
 lbl_ausgabe = text(FONT_MENU, "", (0, 0.5), (12, 55))
 lbl_hinweis = text(terminalio.FONT, "", (0.5, 0.5), (64, 55))
-for teil in (lbl_titel, lbl_pc, lbl_name, rechteck(128, 1, 0, 44), ico_ausgabe,
-             lbl_ausgabe, lbl_hinweis):
+for teil in (lbl_titel, lbl_pc, mute_bg, lbl_mute, lbl_name, rechteck(128, 1, 0, 44),
+             ico_ausgabe, lbl_ausgabe, lbl_hinweis):
     start.append(teil)
 
 # --- Menü (4 Zeilen, markierte Zeile invertiert) ---
@@ -432,6 +437,11 @@ schlaeft = False
 gedimmt = False
 update_laeuft = False
 rx_puffer = b""
+mute_an = False
+mute_name = ""
+mute_bekannt = False        # erst nach der ersten Meldung vom PC Änderungen einblenden
+taste_seit = None           # Zeitpunkt, seit dem der Taster gedrückt ist
+taste_lang = False
 
 
 def pc_da():
@@ -501,7 +511,20 @@ def gross_setzen(lbl, t):
 def start_zeichnen():
     if lbl_name.text != f3_name:
         gross_setzen(lbl_name, f3_name)
-    lbl_pc.text = "" if pc_da() else "kein PC"
+    da = pc_da()
+    lbl_pc.text = "" if da else "kein PC"
+    m = ""
+    if da and mute_an:
+        m = mute_name + " aus"
+        if len(m) > 13:
+            m = "STUMM"
+    if lbl_mute.text != m:
+        lbl_mute.text = m
+        if m:
+            w = lbl_mute.bounding_box[2]
+            mute_bg.x = 125 - w - 2
+            mute_bg.width = w + 4
+    mute_bg.hidden = not m
     aus = ausgaben[ausgabe_idx] if 0 <= ausgabe_idx < len(ausgaben) else "-"
     if lbl_ausgabe.text != aus:
         lbl_ausgabe.text = aus
@@ -549,6 +572,22 @@ def overlay_zeigen(i):
     else:
         schrift_setzen(ov_wert, FONT_GROSS, "%d %%" % ((fader[i].wert + 5) // 10))
     ov_fuell.width = max(1, fader[i].wert * 116 // 1000)
+    ov_rahmen.hidden = False
+    ov_fuell.hidden = False
+    overlay_bis = time.monotonic() + OVERLAY_SEK
+    if display.root_group is not overlay:
+        display.root_group = overlay
+
+
+def overlay_text(name, wert):
+    """Einblendung ohne Balken, z. B. "Mikrofon / stumm"."""
+    global overlay_bis
+    if not overlay_an or update_laeuft:
+        return
+    ov_name.text = name
+    schrift_setzen(ov_wert, FONT_GROSS, wert)
+    ov_rahmen.hidden = True
+    ov_fuell.hidden = True
     overlay_bis = time.monotonic() + OVERLAY_SEK
     if display.root_group is not overlay:
         display.root_group = overlay
@@ -632,7 +671,7 @@ def cfg_anwenden(teile):
 
 def zeile_verarbeiten(zeile):
     global apps, ausgaben, ausgabe_idx, mikros, mikro_idx, f3_name, letzte_rx
-    global gesperrt, namen, update_laeuft
+    global gesperrt, namen, update_laeuft, mute_an, mute_name, mute_bekannt
     letzte_rx = time.monotonic()
     teile = zeile.split("\t")
     befehl = teile[0]
@@ -662,6 +701,13 @@ def zeile_verarbeiten(zeile):
         f3_name = teile[1]
         if len(namen) == 3:
             namen[2] = f3_name
+    elif befehl == "MUTE" and len(teile) > 2:
+        neu = teile[1] == "1"
+        umgeschaltet = mute_bekannt and neu != mute_an
+        mute_an, mute_name, mute_bekannt = neu, teile[2], True
+        if umgeschaltet and not schlaeft:
+            overlay_text(mute_name, "stumm" if neu else "an")
+            return
     elif befehl == "LABELS" and len(teile) >= 4:
         namen = teile[1:4]
         return
@@ -766,14 +812,26 @@ while True:
                     cursor = neu
                     menue_zeichnen()
 
-    # Taster
+    # Taster: kurz = auswählen (beim Loslassen), lang = stummschalten
     ereignis = taster.events.get()
-    if ereignis and ereignis.pressed:
+    if ereignis:
         letzte_eingabe = jetzt
-        if not aufwachen() and not update_laeuft:
-            if overlay_bis:
-                overlay_bis = 0
-            taster_gedrueckt()
+        if ereignis.pressed:
+            if aufwachen() or update_laeuft:
+                taste_seit = None              # Druck hat nur aufgeweckt
+            else:
+                taste_seit = jetzt
+                taste_lang = False
+        elif taste_seit is not None:
+            if not taste_lang:
+                if overlay_bis:
+                    overlay_bis = 0
+                taster_gedrueckt()
+            taste_seit = None
+    if taste_seit is not None and not taste_lang and jetzt - taste_seit >= LANG_SEK:
+        taste_lang = True
+        letzte_aktivitaet = jetzt
+        senden("MUTE")
 
     # Lautstärke-Anzeige ausblenden
     if overlay_bis and jetzt >= overlay_bis:

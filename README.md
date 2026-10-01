@@ -9,8 +9,11 @@ Raspberry Pi Pico 2 steuern Systemlautstärke, Mikrofon und einzelne Programme u
 
 ## Funktionen
 
-- **Fader 1/2:** Systemlautstärke oder Mikrofon (in der App einstellbar)
-- **Fader 3:** ein Programm nach Wahl – am Dashboard im Menü oder in der App auswählbar
+- **Fader 1/2:** standardmäßig Systemlautstärke und Mikrofon (in der App frei belegbar)
+- **Fader 3:** ein Programm oder eine Gruppe nach Wahl – am Dashboard im Menü oder in der App auswählbar
+- **Gruppen** wie in Wave Link: mehrere Programme (z. B. alle Spiele) auf einem Fader
+- **Alle Fader frei belegbar:** System, Mikrofon, Programm, Gruppe oder das aktive Fenster
+- **Stummschalten** per langem Druck auf den Drehgeber, mit Anzeige auf dem Display
 - **Menü am Dashboard:** Programm für Fader 3, Ausgabegerät und Mikrofon umschalten
 - **Display:** Start-Animation, Lautstärke-Anzeige, Bildschirmschoner
 - **App:** moderne Oberfläche, Live-Anzeige, Umbenennen/Ausblenden von Programmen und Geräten
