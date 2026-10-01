@@ -14,6 +14,7 @@ Raspberry Pi Pico 2 steuern Systemlautstärke, Mikrofon und einzelne Programme u
 - **Gruppen** wie in Wave Link: mehrere Programme (z. B. alle Spiele) auf einem Fader
 - **Alle Fader frei belegbar:** System, Mikrofon, Programm, Gruppe oder das aktive Fenster
 - **Stummschalten** per langem Druck auf den Drehgeber, mit Anzeige auf dem Display
+- **Panel mit RP2040-Zero:** Bedienelemente und Display an einem eigenen kleinen Board, der Pico als Brücke (siehe `hardware/zero-panel/`)
 - **Menü am Dashboard:** Programm für Fader 3, Ausgabegerät und Mikrofon umschalten
 - **Display:** Start-Animation, Lautstärke-Anzeige, Bildschirmschoner
 - **App:** moderne Oberfläche, Live-Anzeige, Umbenennen/Ausblenden von Programmen und Geräten
@@ -62,7 +63,7 @@ aktualisiert die App danach auch das Dashboard.
 | `ui/index.html` | Oberfläche (läuft in WebView2) |
 | `firmware/` | Pico-Firmware (CircuitPython), wird in die App eingebettet |
 | `installer/` | NSIS-Installer |
-| `hardware/panel/` | Panel-Platine (KiCad): Fader, Drehgeber, Display über I2C an den Pico |
+| `hardware/zero-panel/` | Panel mit RP2040-Zero: Fader, Drehgeber und Display, Pico als Brücke |
 
 Lokal bauen (Linux oder Windows, Go ≥ 1.24):
 

@@ -523,11 +523,14 @@ function renderOverview() {
   patch($("#devArt"), deviceArt());
   const c = S.conn;
   $("#heroBadge").innerHTML = fwBadge();
-  $("#heroTitle").textContent = c.connected ? "Dashboard ist bereit" : (S.drives.bootsel || S.drives.circuitpy ? "Neuer Pico gefunden" : "Dashboard nicht verbunden");
-  $("#heroSub").textContent = c.connected ? "Alle Regler sind mit Windows verbunden." : (S.drives.bootsel || S.drives.circuitpy ? "Er kann jetzt eingerichtet werden." : "Schließe dein Dashboard per USB an – es wird automatisch erkannt.");
+  const noPanel = c.connected && c.bridge && !c.panel;
+  $("#heroTitle").textContent = noPanel ? "Panel nicht verbunden" : c.connected ? "Dashboard ist bereit" : (S.drives.bootsel || S.drives.circuitpy ? "Neuer Pico gefunden" : "Dashboard nicht verbunden");
+  $("#heroSub").textContent = noPanel ? "Der Pico ist verbunden, aber kein Panel antwortet. Prüfe das Kabel zum RP2040-Zero (GND, 5 V, TX, RX)."
+    : c.connected ? "Alle Regler sind mit Windows verbunden." : (S.drives.bootsel || S.drives.circuitpy ? "Er kann jetzt eingerichtet werden." : "Schließe dein Dashboard per USB an – es wird automatisch erkannt.");
   const out = S.outputs.find(o => o.isDefault), mic = S.inputs.find(o => o.isDefault);
   const kv = [];
   if (c.connected) kv.push(["Anschluss", c.port], ["Firmware", c.firmware + (S.firmware.state === "outdated" ? ` → ${S.firmware.bundled}` : "")]);
+  if (c.connected && c.bridge) kv.push(["Panel", c.panel ? `RP2040-Zero · Firmware ${c.panel}` : "nicht verbunden"]);
   kv.push(["Ausgabe", out ? (out.alias || out.name) : "–"], ["Mikrofon", mic ? (mic.alias || mic.name) : "–"]);
   kv.push(["Langer Druck", `${S.mute.label} · ${S.mute.on ? "stumm" : "an"}`]);
   patch($("#heroKV"), kv.map(([k, v]) => `<span>${k}</span><div>${esc(v)}</div>`).join(""));
@@ -535,6 +538,7 @@ function renderOverview() {
   if (!c.connected && (S.drives.bootsel || S.drives.circuitpy)) act = `<button class="btn primary" data-act="wiz">Jetzt einrichten</button>`;
   else if (S.firmware.state === "outdated") act = `<button class="btn primary" data-act="fw">Firmware aktualisieren</button>`;
   else if (S.firmware.state === "error") act = `<div class="errbox">${ICON.alert}<div>${esc(S.firmware.message)}</div></div>`;
+  else if (c.connected && c.panelOld) act = `<div class="warnbox">${ICON.alert}<div>Die Panel-Firmware ${esc(c.panel)} ist älter als ${esc(S.firmware.bundled)}. Schließe den RP2040-Zero einmal per USB-C direkt an den PC an (Pico vorher abziehen) – MakerDash aktualisiert ihn automatisch.</div></div>`;
   patch($("#heroAct"), act);
 
   const cards = [0, 1, 2].map(i => {

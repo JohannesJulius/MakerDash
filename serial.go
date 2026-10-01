@@ -21,6 +21,8 @@ type Remote struct {
 	Proto   int
 	Version string
 	BootOK  bool
+	Bridge  bool   // Pico ohne Display, leitet an ein Panel weiter (ab Firmware 2.3)
+	Panel   string // Firmware-Version des angeschlossenen Panels ("" = keins)
 }
 
 func parsePong(s string) (Remote, bool) {
@@ -39,6 +41,12 @@ func parsePong(s string) (Remote, bool) {
 	}
 	if len(f) > 4 {
 		r.BootOK = f[4] == "1"
+	}
+	if len(f) > 5 {
+		r.Bridge = true
+		if f[5] != "-" {
+			r.Panel = f[5]
+		}
 	}
 	return r, true
 }

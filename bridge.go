@@ -88,6 +88,9 @@ type uiState struct {
 		Port      string `json:"port"`
 		Firmware  string `json:"firmware"`
 		Proto     int    `json:"proto"`
+		Bridge    bool   `json:"bridge"`
+		Panel     string `json:"panel"`
+		PanelOld  bool   `json:"panelOld"`
 	} `json:"conn"`
 	Firmware  FirmwareState `json:"firmware"`
 	Setup     SetupState    `json:"setup"`
@@ -133,6 +136,8 @@ func buildState() uiState {
 	s.Conn.Connected, s.Conn.Port = connected, port
 	if connected {
 		s.Conn.Firmware, s.Conn.Proto = rem.Version, rem.Proto
+		s.Conn.Bridge, s.Conn.Panel = rem.Bridge, rem.Panel
+		s.Conn.PanelOld = rem.Panel != "" && newerVersion(bundledFirmware, rem.Panel)
 	}
 	fw, setup, cp, bs := firmware.Snapshot()
 	s.Firmware, s.Setup = fw, setup

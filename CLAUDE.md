@@ -14,9 +14,10 @@ und 0,96"-OLED (SSD1306) steuert Windows-Lautstärken. Sprache mit dem Nutzer: *
   Laufwerk geschrieben). `FW_VERSION` in `firmware/code.py` erhöhen, wenn sich die Firmware ändert.
   Pins/Anzeige kommen aus `settings.toml`, das die App schreibt.
 - Protokoll Pico <-> PC: Kommentar oben in `core.go`.
-- `hardware/panel/` – Panel-Platine v1.0 (KiCad 7, per Skript erzeugt: `build.sh <freerouting.jar>`;
-  AVR64DD28 als I2C-Target 0x30, 16 Universal-Kanäle, Pico braucht nur noch I2C). Firmware für den
-  AVR und die Anbindung in Pico-Firmware/App fehlen noch.
+- `hardware/zero-panel/` – Panel mit RP2040-Zero (Anleitung/Verdrahtung). Firmware-Rollen in
+  `code.py` (`DASH_ROLE` auto): local (USB + Display), bridge (USB ohne Display, UART GP0/GP1 zum
+  Panel, beantwortet PING selbst, PONG mit 6. Feld Panel-Version), panel (ohne USB, UART statt
+  usb_cdc). Die frühere AVR-Platine (hardware/panel) wurde verworfen, steht nur noch in der Git-Historie.
 - `installer/setup.nsi` – NSIS-Installer (`/S /UPDATE` = stilles Update durch die App).
 
 ## Release
@@ -31,6 +32,7 @@ GOOS=windows go test -c -o dist/apptest.exe . && wine dist/apptest.exe -test.v  
 cd tools/uitest && python3 shots.py        # UI-Screenshots mit Playwright (Demo-Daten ohne Bridge)
 cd tools/picosim && python3 test_v2.py     # Firmware in simulierter CircuitPython-Umgebung, rendert OLED
 python3 tools/picosim/test_labels.py       # Textpositionen mit echten Adafruit-Bibliotheken (Blinka)
+cd tools/picosim && python3 test_rollen.py # Brücke und Panel (RP2040-Zero) getrennt simuliert
 ```
 Wine kann WebView2, Audio-Sitzungen und das Umschalten des Standardgeräts (IPolicyConfig) NICHT
 nachbilden – das muss auf echtem Windows geprüft werden. `tools/picosim/e2e_fw.py` verbindet die
@@ -58,6 +60,9 @@ simulierte Firmware über ein pty (socat) mit der echten .exe unter Wine.
 - `tools/picosim/sim.py` nutzt die echten Adafruit-Bibliotheken, wenn Blinka installiert ist
   (`pip install adafruit-blinka-displayio`) – dann sind die Bilder pixelgenau; `SIM_FAKE=1` erzwingt
   die alte Nachbildung. Wine ist per `apt-get install wine64` installierbar.
+- 2.3.0: Panel mit RP2040-Zero (Zero zeichnet Display, Pico = Brücke). **Nur simuliert, nicht auf
+  Hardware geprüft.** Einrichtung des Zero per BOOTSEL nutzt das CircuitPython-Build
+  `waveshare_rp2040_zero` (URL nicht geprüft – Download-Server war gesperrt).
 - Repository heißt jetzt `JohannesJulius/MakerDash` (alte Adresse wird weitergeleitet).
 - Noch ungetestet auf echter Hardware: Programmliste (Audio-Sitzungen), Standardgerät umschalten,
   Einrichtung eines neuen Pico im BOOTSEL-Modus.

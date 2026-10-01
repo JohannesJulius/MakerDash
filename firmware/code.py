@@ -1,9 +1,15 @@
-# MakerDash – Firmware für Raspberry Pi Pico 2 (CircuitPython 9/10)
+# MakerDash – Firmware für Raspberry Pi Pico 2 und RP2040-Zero (CircuitPython 9/10)
 #
 # Diese Datei wird von der App "MakerDash" installiert und aktualisiert.
 # Einstellungen (Pins usw.) stehen in settings.toml und werden in der App geändert.
+#
+# Dieselbe Firmware läuft in drei Rollen (DASH_ROLE = "auto" erkennt sie selbst):
+#   local  – per USB am PC, Display und Bedienelemente hängen direkt dran (klassisches Dashboard)
+#   bridge – per USB am PC, aber ohne Display: leitet alles über UART an ein Panel weiter
+#   panel  – ohne USB, nur über 5 V versorgt: Bedienelemente + Display, spricht per UART mit der Brücke
+# Verbindung Brücke <-> Panel: GND, 5 V, TX -> RX, RX <- TX (Standard GP0 = TX, GP1 = RX), 115200 Baud.
 
-FW_VERSION = "2.2.0"
+FW_VERSION = "2.3.0"
 PROTO = 2
 BOOT_MARKER = "DASHBOOT 2"
 
@@ -61,6 +67,11 @@ PIN_SDA = cfg_pin("DASH_SDA", "GP4")
 PIN_SCL = cfg_pin("DASH_SCL", "GP5")
 I2C_FREQ = cfg_int("DASH_I2C_FREQ", 400000)      # SSD1306 schafft 400 kHz (Fast Mode)
 ANIMATION = cfg_int("DASH_ANIMATION", 1)
+ROLLE = cfg_str("DASH_ROLE", "auto")               # auto, local, bridge, panel
+PIN_LINK_TX = cfg_pin("DASH_LINK_TX", "GP0")
+PIN_LINK_RX = cfg_pin("DASH_LINK_RX", "GP1")
+LINK_BAUD = 115200
+PANEL_TIMEOUT = 6           # so lange ohne Lebenszeichen gilt das Panel als getrennt
 
 # Laufzeit-Einstellungen (werden von der App per CFG aktualisiert)
 helligkeit = cfg_int("DASH_BRIGHTNESS", 100) / 100
@@ -77,10 +88,152 @@ AKTIV_SCHWELLE = 15         # so viel muss sich ein Fader bewegen, um als Bedien
 
 # ======================= Hardware =======================
 
-ser = usb_cdc.data
-if ser is not None:
-    ser.timeout = 0
-    ser.write_timeout = 0.05
+class UartLink:
+    """UART-Verbindung zwischen Brücke und Panel, mit derselben Schnittstelle wie usb_cdc.data."""
+    connected = True
+
+    def __init__(self):
+        self.uart = busio.UART(PIN_LINK_TX, PIN_LINK_RX, baudrate=LINK_BAUD, timeout=0,
+                               receiver_buffer_size=2048)
+
+    @property
+    def in_waiting(self):
+        return self.uart.in_waiting
+
+    def read(self, n):
+        return self.uart.read(n) or b""
+
+    def write(self, daten):
+        return self.uart.write(daten)
+
+
+def usb_da():
+    """True, wenn ein PC per USB verbunden ist (nach dem Start kurz darauf warten)."""
+    t0 = time.monotonic()
+    while time.monotonic() - t0 < 1.5:
+        try:
+            if supervisor.runtime.usb_connected:
+                return True
+        except AttributeError:
+            return True
+        time.sleep(0.05)
+    return False
+
+
+def display_suchen():
+    """I2C-Bus öffnen und nach dem OLED (0x3C) suchen. Liefert den Bus oder None."""
+    displayio.release_displays()
+    try:
+        i2c_bus = busio.I2C(PIN_SCL, PIN_SDA, frequency=I2C_FREQ)
+    except Exception:                       # z. B. keine Pull-ups = nichts angeschlossen
+        return None
+    gefunden = False
+    t0 = time.monotonic()
+    while not i2c_bus.try_lock():
+        if time.monotonic() - t0 > 0.5:
+            break
+    else:
+        try:
+            gefunden = 0x3C in i2c_bus.scan()
+        finally:
+            i2c_bus.unlock()
+    if not gefunden:
+        i2c_bus.deinit()
+        return None
+    return i2c_bus
+
+
+i2c = display_suchen()
+if ROLLE == "auto":
+    if not usb_da():
+        ROLLE = "panel"
+    elif i2c is None:
+        ROLLE = "bridge"
+    else:
+        ROLLE = "local"
+
+
+def bruecke():
+    """Brücke: PC (USB) <-> Panel (UART). Beantwortet PING selbst, alles andere wird durchgereicht."""
+    pc = usb_cdc.data
+    pc.timeout = 0
+    pc.write_timeout = 0.05
+    panel = UartLink()
+    panel_ver = ""
+    panel_zuletzt = -100.0
+    hallo = -100.0
+    puf_pc = b""
+    puf_panel = b""
+
+    def an_pc(zeile):
+        if pc.connected:
+            try:
+                pc.write((zeile + "\n").encode("utf-8"))
+            except Exception:
+                pass
+
+    def an_panel(zeile):
+        panel.write((zeile + "\n").encode("utf-8"))
+
+    def zeilen(puffer):
+        teile = puffer.split(b"\n")
+        liste = []
+        for t in teile[:-1]:
+            try:
+                liste.append(t.decode("utf-8").strip())
+            except UnicodeError:            # kaputte Zeile (z. B. Störung beim Einstecken) verwerfen
+                pass
+        return liste, teile[-1]
+
+    an_panel("UPDATE_ABORT")               # falls das Panel noch den Update-Bildschirm zeigt
+    while True:
+        jetzt = time.monotonic()
+        n = pc.in_waiting
+        if n:
+            liste, puf_pc = zeilen(puf_pc + pc.read(n))
+            for z in liste:
+                if z == "PING":
+                    da = jetzt - panel_zuletzt < PANEL_TIMEOUT
+                    an_pc("PONG\tDASH\t%d\t%s\t%d\t%s" % (PROTO, FW_VERSION, 1 if BOOT_OK else 0,
+                                                       panel_ver if da and panel_ver else "-"))
+                    an_panel("PING")
+                elif z == "REBOOT":
+                    time.sleep(0.2)
+                    microcontroller.reset()
+                elif z:
+                    if z == "UPDATING":
+                        try:
+                            supervisor.runtime.autoreload = False
+                        except Exception:
+                            pass
+                    an_panel(z)
+        n = panel.in_waiting
+        if n:
+            liste, puf_panel = zeilen(puf_panel + panel.read(n))
+            for z in liste:
+                if not z:
+                    continue
+                war_weg = jetzt - panel_zuletzt >= PANEL_TIMEOUT
+                panel_zuletzt = jetzt
+                if z.startswith("PANEL"):
+                    panel_ver = z.split("\t")[1] if "\t" in z else "?"
+                    if war_weg:
+                        an_pc(z)                 # App schickt daraufhin Listen und Einstellungen neu
+                elif z.startswith("PONG"):
+                    if war_weg:
+                        an_panel("HELLO")
+                else:
+                    an_pc(z)
+        if len(puf_pc) > 8192:
+            puf_pc = b""
+        if len(puf_panel) > 8192:
+            puf_panel = b""
+        if jetzt - panel_zuletzt > 3 and jetzt - hallo > 2:
+            an_panel("HELLO")
+            hallo = jetzt
+        time.sleep(0.002)
+
+
 
 
 def senden(zeile):
@@ -126,6 +279,17 @@ def boot_pruefen():
 
 
 boot_pruefen()
+
+if ROLLE == "bridge":
+    bruecke()                               # kehrt nicht zurück
+
+if ROLLE == "panel":
+    ser = UartLink()
+else:
+    ser = usb_cdc.data
+    if ser is not None:
+        ser.timeout = 0
+        ser.write_timeout = 0.05
 
 
 class Fader:
@@ -178,8 +342,9 @@ letzte_pos = encoder.position
 taster = keypad.Keys((PIN_ENC_SW,), value_when_pressed=False, pull=True)
 
 # ======================= Display =======================
-displayio.release_displays()
-i2c = busio.I2C(PIN_SCL, PIN_SDA, frequency=I2C_FREQ)
+if i2c is None:                             # Display nicht gefunden – trotzdem versuchen (Fehler wird sichtbar)
+    displayio.release_displays()
+    i2c = busio.I2C(PIN_SCL, PIN_SDA, frequency=I2C_FREQ)
 bus = i2cdisplaybus.I2CDisplayBus(i2c, device_address=0x3C)
 display = adafruit_displayio_ssd1306.SSD1306(bus, width=128, height=64)
 
@@ -678,6 +843,9 @@ def zeile_verarbeiten(zeile):
     if befehl == "PING":
         senden("PONG\tDASH\t%d\t%s\t%d" % (PROTO, FW_VERSION, 1 if BOOT_OK else 0))
         return
+    if befehl == "HELLO":                   # Brücke fragt, ob hier ein Panel ist
+        senden("PANEL\t" + FW_VERSION)
+        return
     if befehl == "SYNC":
         for i in range(3):
             if i == 2 and gesperrt:
@@ -774,6 +942,8 @@ def empfangen():
 
 gehe_zu("START")
 war_pc_da = False
+if ROLLE == "panel":
+    senden("PANEL\t" + FW_VERSION)          # bei der Brücke melden
 
 # ======================= Hauptschleife =======================
 while True:

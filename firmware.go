@@ -33,7 +33,7 @@ const (
 func circuitPythonURL(board string) string {
 	id := "raspberry_pi_pico2"
 	if board == "RP2040" {
-		id = "raspberry_pi_pico"
+		id = "waveshare_rp2040_zero" // Panel-Controller (läuft auch auf dem Pico 1)
 	}
 	return fmt.Sprintf("https://downloads.circuitpython.org/bin/%s/en_US/adafruit-circuitpython-%s-en_US-%s.uf2",
 		id, id, circuitPythonVersion)

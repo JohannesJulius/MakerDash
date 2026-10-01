@@ -24,6 +24,14 @@ func TestParsePong(t *testing.T) {
 	if !ok || r.Proto != 2 || r.Version != "2.0.0" || r.BootOK {
 		t.Fatalf("v2: %+v", r)
 	}
+	r, _ = parsePong("PONG\tDASH\t2\t2.3.0\t1\t-")
+	if !r.Bridge || r.Panel != "" {
+		t.Fatalf("Brücke ohne Panel: %+v", r)
+	}
+	r, _ = parsePong("PONG\tDASH\t2\t2.3.0\t1\t2.2.9")
+	if !r.Bridge || r.Panel != "2.2.9" || r.Version != "2.3.0" {
+		t.Fatalf("Brücke mit Panel: %+v", r)
+	}
 	if _, ok := parsePong("hallo"); ok {
 		t.Fatal("falsch erkannt")
 	}

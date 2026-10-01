@@ -10,6 +10,11 @@ package main
 //                UPDATING | PROGRESS\t<0-100> | UPDATE_ABORT | REBOOT
 //   Pico -> PC:  PONG\tDASH\t<proto>\t<version>\t<boot ok> | F\t<1-3>\t<0-1000>
 //                SETAPP\t<name> | SETOUT\t<name> | SETIN\t<name> | MUTE (langer Druck, ab Firmware 2.2)
+//                PANEL\t<version> (Brücke: Panel neu verbunden, ab Firmware 2.3)
+//
+//   Ab Firmware 2.3 kann der Pico eine Brücke sein (kein eigenes Display): Er beantwortet PING mit
+//   PONG\tDASH\t<proto>\t<version>\t<boot ok>\t<panel-version oder "-"> und reicht alle anderen
+//   Zeilen per UART an ein Panel (RP2040-Zero mit Display und Bedienelementen) weiter.
 //
 //   APPS enthält für das Menü "Fader 3" zuerst die Gruppen, dann die Programme, zuletzt "Aktives Fenster".
 
@@ -284,6 +289,12 @@ func handleLine(line string) {
 		}
 	case "MUTE":
 		toggleMute()
+	case "PANEL":
+		// Panel an der Brücke (neu) verbunden: es kennt noch keine Listen und Einstellungen
+		pushToPico(true)
+		sendDisplayCfg()
+		link.Send("SYNC")
+		markDirty()
 	case "SETOUT":
 		if len(f) > 1 {
 			if id := lookup(lastOuts, f[1]); id != "" {

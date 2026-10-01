@@ -33,7 +33,26 @@ sys.modules["time"] = tm
 board = types.ModuleType("board")
 for n in ["GP%d" % i for i in range(29)]: setattr(board, n, n)
 sys.modules["board"] = board
-busio = types.ModuleType("busio"); busio.I2C = lambda scl, sda, frequency=100000: ("i2c", scl, sda, frequency); sys.modules["busio"] = busio
+busio = types.ModuleType("busio")
+HW = {"display": True, "usb": True}        # Szenario: Display am I2C-Bus? PC per USB?
+class I2C:
+    def __init__(self, scl, sda, frequency=100000): self.pins = (scl, sda)
+    def try_lock(self): return True
+    def unlock(self): pass
+    def scan(self): return [0x3C] if HW["display"] else []
+    def deinit(self): pass
+busio.I2C = I2C
+class UART:
+    """Verbindung Brücke <-> Panel: rx = was hier ankommt, tx = was gesendet wurde."""
+    def __init__(self, tx, rx, baudrate=9600, timeout=1, receiver_buffer_size=64):
+        self.rx = b""; self.tx = []; LINK["uart"] = self
+    @property
+    def in_waiting(self): return len(self.rx)
+    def read(self, n): d, self.rx = self.rx[:n], self.rx[n:]; return d
+    def write(self, b): self.tx.append(b.decode()); return len(b)
+LINK = {}
+busio.UART = UART
+sys.modules["busio"] = busio
 
 # ---------- analog ----------
 ADC = {}
@@ -148,7 +167,12 @@ vio = types.ModuleType("vectorio")
 class Rectangle:
     def __init__(self, pixel_shader, width, height, x=0, y=0): self.pal, self.width, self.height, self.x, self.y = pixel_shader, width, height, x, y; self.hidden = False
 vio.Rectangle = Rectangle; sys.modules["vectorio"] = vio
-sup = types.ModuleType("supervisor"); sup.runtime = types.SimpleNamespace(autoreload=True); sys.modules["supervisor"] = sup
+sup = types.ModuleType("supervisor"); sys.modules["supervisor"] = sup
+class _Runtime:
+    autoreload = True
+    @property
+    def usb_connected(self): return HW["usb"]
+sup.runtime = _Runtime()
 mc = types.ModuleType("microcontroller")
 class Reset(Exception): pass
 def _reset(): raise Reset()
