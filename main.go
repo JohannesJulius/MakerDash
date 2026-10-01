@@ -80,6 +80,7 @@ func main() {
 	link = NewLinkDeferred()
 	audio = NewAudio(func(st AudioState) {
 		rememberSeen(st)
+		reapplyOnNewApps(st)
 		pushToPico(false)
 		markDirty()
 	})

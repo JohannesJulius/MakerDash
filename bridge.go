@@ -71,6 +71,13 @@ type uiItem struct {
 	IsDefault bool   `json:"isDefault,omitempty"`
 }
 
+type uiGroup struct {
+	ID     string   `json:"id"`
+	Name   string   `json:"name"`
+	Apps   []string `json:"apps"`
+	Active bool     `json:"active"` // mindestens ein Programm spielt Ton ab
+}
+
 type uiState struct {
 	App struct {
 		Version string `json:"version"`
@@ -94,6 +101,12 @@ type uiState struct {
 	F3        string      `json:"f3"`
 	F3Key     string      `json:"f3Key"`
 	Apps      []uiItem    `json:"apps"`
+	Groups    []uiGroup   `json:"groups"`
+	Mute      struct {
+		Target string `json:"target"`
+		Label  string `json:"label"`
+		On     bool   `json:"on"`
+	} `json:"mute"`
 	Outputs   []uiItem    `json:"outputs"`
 	Inputs    []uiItem    `json:"inputs"`
 	Config    struct {
@@ -146,7 +159,18 @@ func buildState() uiState {
 		present[d.ID] = true
 	}
 	withConfig(func(c *Config) {
-		s.F3 = fader3Name(st, c)
+		s.F3 = targetLabel(st, c, fader3Target(c))
+		s.Mute.Target = muteTargetOf(c)
+		s.Mute.Label = targetLabel(st, c, s.Mute.Target)
+		s.Mute.On = isMuted(st, resolveTarget(c, s.Mute.Target))
+		s.Groups = []uiGroup{}
+		for _, g := range c.Groups {
+			ug := uiGroup{ID: g.ID, Name: g.Name, Apps: append([]string{}, g.Apps...)}
+			for _, k := range g.Apps {
+				ug.Active = ug.Active || running[k]
+			}
+			s.Groups = append(s.Groups, ug)
+		}
 		s.F3Key = c.Fader3App
 		s.Config.Fader1, s.Config.Fader2 = c.Fader1, c.Fader2
 		s.Config.Hardware, s.Config.Display = c.Hardware, c.Display
@@ -216,6 +240,7 @@ type uiMsg struct {
 	Value    string          `json:"value"`
 	Hardware *Hardware       `json:"hardware"`
 	Display  *Display        `json:"display"`
+	Apps     *[]string       `json:"apps"`
 	Raw      json.RawMessage `json:"raw"`
 }
 
@@ -250,18 +275,99 @@ func handleCommand(m uiMsg) {
 	defer markDirty()
 	switch m.Type {
 	case "setFaderTarget":
-		if m.Target != "master" && m.Target != "mic" && m.Target != "none" {
-			return
-		}
+		ok := false
 		withConfig(func(c *Config) {
+			if !validTarget(c, m.Target, false) {
+				return
+			}
+			ok = true
 			if m.N == 1 {
 				c.Fader1 = m.Target
 			} else if m.N == 2 {
 				c.Fader2 = m.Target
 			}
 		}, true)
+		if !ok {
+			return
+		}
 		pushToPico(false)
 		link.Send("SYNC")
+	case "setMuteTarget":
+		withConfig(func(c *Config) {
+			if validTarget(c, m.Target, true) && m.Target != "none" {
+				c.MuteTarget = m.Target
+			}
+		}, true)
+		pushToPico(false)
+	case "toggleMute":
+		toggleMute()
+	case "addGroup":
+		var id string
+		withConfig(func(c *Config) {
+			id = newGroupID(c)
+			name := cleanName(m.Value)
+			if name == "" {
+				name = "Gruppe " + strings.TrimPrefix(id, "g")
+			}
+			c.Groups = append(c.Groups, &Group{ID: id, Name: name, Apps: []string{}})
+		}, true)
+		pushToPico(false)
+	case "setGroup":
+		withConfig(func(c *Config) {
+			g := groupByID(c, m.Key)
+			if g == nil {
+				return
+			}
+			if n := cleanName(m.Value); n != "" {
+				g.Name = n
+			}
+			if m.Apps != nil {
+				g.Apps = []string{}
+				seen := map[string]bool{}
+				for _, k := range *m.Apps {
+					k = strings.ToLower(strings.TrimSpace(k))
+					if k != "" && !seen[k] {
+						seen[k] = true
+						g.Apps = append(g.Apps, k)
+					}
+				}
+			}
+		}, true)
+		pushToPico(false)
+		// Mitglieder sofort auf die Stellung der Fader bringen, die diese Gruppe regeln
+		faderMu.Lock()
+		vals := faderValues
+		faderMu.Unlock()
+		for n := 1; n <= 3; n++ {
+			var t string
+			withConfig(func(c *Config) { t = targetOf(c, n) }, false)
+			if t == "group:"+m.Key && vals[n-1] >= 0 {
+				setTargetVolume(n, vals[n-1])
+			}
+		}
+	case "deleteGroup":
+		withConfig(func(c *Config) {
+			for i, g := range c.Groups {
+				if g.ID == m.Key {
+					c.Groups = append(c.Groups[:i], c.Groups[i+1:]...)
+					break
+				}
+			}
+			ref := "group:" + m.Key
+			if c.Fader1 == ref {
+				c.Fader1 = "none"
+			}
+			if c.Fader2 == ref {
+				c.Fader2 = "none"
+			}
+			if c.Fader3App == ref {
+				c.Fader3App = ""
+			}
+			if c.MuteTarget == ref {
+				c.MuteTarget = ""
+			}
+		}, true)
+		pushToPico(false)
 	case "setFader3App":
 		setFader3App(m.Key, true)
 	case "setItem":
@@ -382,6 +488,15 @@ func handleCommand(m uiMsg) {
 	default:
 		log.Println("Unbekannter UI-Befehl:", m.Type)
 	}
+}
+
+// cleanName kürzt Namen aus der Oberfläche auf die Länge, die das Display zeigen kann.
+func cleanName(s string) string {
+	s = strings.TrimSpace(s)
+	if r := []rune(s); len(r) > 24 {
+		s = string(r[:24])
+	}
+	return s
 }
 
 func firstDrive() string {

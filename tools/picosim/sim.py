@@ -1,5 +1,20 @@
-import sys, types, time as _rt
+import os, sys, types, time as _rt
 from PIL import Image, ImageFont, ImageDraw
+
+# Mit "pip install adafruit-blinka-displayio" laufen displayio, Schriften und Labels mit den echten
+# Adafruit-Bibliotheken aus firmware/lib – die Bilder entsprechen dann pixelgenau dem Display.
+# Ohne Blinka (oder mit SIM_FAKE=1) gibt es eine vereinfachte Nachbildung (Textpositionen ungenau).
+_FWDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "firmware")
+REAL = os.environ.get("SIM_FAKE") is None
+if REAL:
+    try:
+        sys.path.insert(0, os.path.join(_FWDIR, "lib"))
+        import displayio as _rdio, vectorio as _rvio, terminalio as _rterm
+        from adafruit_bitmap_font import bitmap_font as _rbf
+        import adafruit_display_text as _radt
+        from adafruit_display_text import bitmap_label as _rbl, label as _rlab
+    except ImportError:
+        REAL = False
 
 # ---------- virtuelle Zeit & Szenario ----------
 CLOCK = [0.0]
@@ -156,6 +171,43 @@ lab.Label = Label; adt.label = lab; adt.bitmap_label = lab
 sys.modules["adafruit_display_text"] = adt; sys.modules["adafruit_display_text.label"] = lab
 sys.modules["adafruit_display_text.bitmap_label"] = lab
 
+if REAL:
+    _rfonts = {}
+    def _load_font(p):
+        if p not in _rfonts:
+            _rfonts[p] = _rbf.load_font(os.path.join(_FWDIR, p.lstrip("/")))
+        return _rfonts[p]
+    _rbfm = types.ModuleType("adafruit_bitmap_font.bitmap_font"); _rbfm.load_font = _load_font
+    _rabf = types.ModuleType("adafruit_bitmap_font"); _rabf.bitmap_font = _rbfm
+    if not hasattr(_rdio, "release_displays"):
+        _rdio.release_displays = lambda: None
+    sys.modules.update({"displayio": _rdio, "vectorio": _rvio, "terminalio": _rterm,
+                        "adafruit_bitmap_font": _rabf, "adafruit_bitmap_font.bitmap_font": _rbfm,
+                        "adafruit_display_text": _radt, "adafruit_display_text.label": _rlab,
+                        "adafruit_display_text.bitmap_label": _rbl})
+
+def _render_real(img):
+    def walk(g, ox, oy):
+        if g.hidden: return
+        ox += g.x; oy += g.y
+        for e in g:
+            if isinstance(e, _rdio.Group): walk(e, ox, oy); continue
+            if e.hidden: continue
+            if isinstance(e, _rdio.TileGrid):
+                b, pal = e.bitmap, e.pixel_shader
+                for yy in range(b.height):
+                    for xx in range(b.width):
+                        v = b[xx, yy]
+                        if pal.is_transparent(v): continue
+                        X, Y = ox + e.x + xx, oy + e.y + yy
+                        if 0 <= X < 128 and 0 <= Y < 64: img.putpixel((X, Y), 255 if pal[v] else 0)
+            elif isinstance(e, _rvio.Rectangle):
+                for yy in range(e.height):
+                    for xx in range(e.width):
+                        X, Y = ox + e.x + xx, oy + e.y + yy
+                        if 0 <= X < 128 and 0 <= Y < 64: img.putpixel((X, Y), 255)
+    walk(DISPLAY["d"].root_group, 0, 0)
+
 def render(scale=4):
     img = Image.new("L", (128, 64), 0)
     def walk(g, ox=0, oy=0):
@@ -181,7 +233,8 @@ def render(scale=4):
                 ax, ay = e.anchor_point; px, py = e.anchored_position
                 x0 = int(round(ox + px - ax * w)); top = int(round(oy + py - ay * h))
                 e.font.draw(img, x0, top + e.font.ascent - 1, e.text, 255 if e.color else 0)
-    walk(DISPLAY["d"].root_group)
+    if REAL: _render_real(img)
+    else: walk(DISPLAY["d"].root_group)
     d = DISPLAY["d"]
     if not d.awake: img = Image.new("L", (128, 64), 0)
     elif d.brightness < 0.5: img = img.point(lambda p: p * 0.45)

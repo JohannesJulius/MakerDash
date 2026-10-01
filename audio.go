@@ -35,6 +35,7 @@ type AudioState struct {
 	DefaultOut string
 	Inputs     []DevInfo
 	DefaultIn  string
+	Muted      map[string]bool // "master", "mic", "app:<exe>" – nur Einträge, die stumm sind
 }
 
 func sameDevs(a, b []DevInfo) bool {
@@ -50,8 +51,14 @@ func sameDevs(a, b []DevInfo) bool {
 }
 
 func (a AudioState) equal(b AudioState) bool {
-	if a.DefaultOut != b.DefaultOut || a.DefaultIn != b.DefaultIn || len(a.Apps) != len(b.Apps) {
+	if a.DefaultOut != b.DefaultOut || a.DefaultIn != b.DefaultIn || len(a.Apps) != len(b.Apps) ||
+		len(a.Muted) != len(b.Muted) {
 		return false
+	}
+	for k := range a.Muted {
+		if !b.Muted[k] {
+			return false
+		}
 	}
 	for i := range a.Apps {
 		if a.Apps[i] != b.Apps[i] {
@@ -111,6 +118,44 @@ func (a *Audio) SetVolume(target string, v float32) {
 	select {
 	case a.wake <- struct{}{}:
 	default:
+	}
+}
+
+// SetMute schaltet Ziele stumm bzw. wieder ein ("master", "mic", "app:<exe>", "focus").
+func (a *Audio) SetMute(targets []string, on bool) {
+	a.cmds <- func() {
+		for _, t := range targets {
+			a.setMute(t, on)
+		}
+		a.refresh()
+	}
+}
+
+func boolArg(b bool) uintptr {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+func (a *Audio) setMute(target string, on bool) {
+	switch {
+	case target == "master":
+		if a.master != 0 {
+			a.master.call(14, boolArg(on), 0) // IAudioEndpointVolume::SetMute
+		}
+	case target == "mic":
+		if a.mic != 0 {
+			a.mic.call(14, boolArg(on), 0)
+		}
+	case target == "focus":
+		if k := foregroundApp(); k != "" {
+			a.setMute("app:"+k, on)
+		}
+	case strings.HasPrefix(target, "app:"):
+		for _, s := range a.sessions[strings.TrimPrefix(target, "app:")] {
+			s.vol.call(5, boolArg(on), 0) // ISimpleAudioVolume::SetMute
+		}
 	}
 }
 
@@ -174,12 +219,41 @@ func (a *Audio) applyPending() {
 			if a.mic != 0 {
 				a.mic.call(7, f32(v), 0)
 			}
+		case target == "focus":
+			if k := foregroundApp(); k != "" {
+				for _, s := range a.sessions[k] {
+					s.SetVolume(v)
+				}
+			}
 		case strings.HasPrefix(target, "app:"):
 			for _, s := range a.sessions[strings.TrimPrefix(target, "app:")] {
 				s.SetVolume(v)
 			}
 		}
 	}
+}
+
+func endpointMuted(ev comObj) bool {
+	if ev == 0 {
+		return false
+	}
+	var m int32
+	ev.call(15, ptr(&m)) // IAudioEndpointVolume::GetMute
+	return m != 0
+}
+
+// foregroundApp liefert den exe-Schlüssel des Programms im Vordergrund ("" wenn unbekannt).
+func foregroundApp() string {
+	h, _, _ := pGetForegroundWindow.Call()
+	if h == 0 {
+		return ""
+	}
+	var pid uint32
+	pGetWindowThreadProcessId.Call(h, uintptr(unsafe.Pointer(&pid)))
+	if pid == 0 {
+		return ""
+	}
+	return processInfo(pid).Key
 }
 
 func (a *Audio) refresh() {
@@ -277,7 +351,23 @@ func (a *Audio) refresh() {
 	sort.Slice(apps, func(i, j int) bool { return strings.ToLower(apps[i].Name) < strings.ToLower(apps[j].Name) })
 	sort.Slice(outs, func(i, j int) bool { return outs[i].Friendly < outs[j].Friendly })
 
-	st := AudioState{Apps: apps, Outputs: outs, DefaultOut: defOut, Inputs: ins, DefaultIn: defIn}
+	muted := map[string]bool{}
+	if endpointMuted(a.master) {
+		muted["master"] = true
+	}
+	if endpointMuted(a.mic) {
+		muted["mic"] = true
+	}
+	for key, list := range a.sessions {
+		if len(list) > 0 {
+			var m int32
+			list[0].vol.call(6, ptr(&m)) // ISimpleAudioVolume::GetMute
+			if m != 0 {
+				muted["app:"+key] = true
+			}
+		}
+	}
+	st := AudioState{Apps: apps, Outputs: outs, DefaultOut: defOut, Inputs: ins, DefaultIn: defIn, Muted: muted}
 	a.mu.Lock()
 	changed := !a.state.equal(st)
 	a.state = st
