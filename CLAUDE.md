@@ -15,6 +15,14 @@ und 0,96"-OLED (SSD1306) steuert Windows-Lautstärken. Sprache mit dem Nutzer: *
   Pins/Anzeige kommen aus `settings.toml`, das die App schreibt.
 - Protokoll Pico <-> PC: Kommentar oben in `core.go`.
 - `installer/setup.nsi` – NSIS-Installer (`/S /UPDATE` = stilles Update durch die App).
+- Mikro-Mix: `wasapi.go` (Aufnahme/Wiedergabe, Process Loopback über `ActivateAudioInterfaceAsync`
+  mit eigenem COM-Objekt), `mixer.go` (Thread, 5-ms-Takt), `jitter.go` (Puffer mit Taktausgleich,
+  ohne Build-Tag – läuft auch mit `go test` unter Linux), `mix.go` (Kabel-/Mikrofonwahl, Menüs,
+  Absturz-Schutz `guard-*`). Ziel ist VB-CABLE („CABLE Input“); Erkennung über den Gerätenamen.
+- Bluetooth: `bluetooth.go` – Liste über `bluetoothapis.dll`, Verbinden/Trennen über
+  `IKsControl` + `KSPROPSETID_BtAudio` (wie ToothTray), Akku über `cfgmgr32` (DEVPKEY am BTHENUM-Knoten).
+- Symbole: `python3 tools/mkicon.py`, danach `rsrc -arch amd64 -manifest app.manifest -ico icon.ico
+  -o rsrc_windows_amd64.syso` (github.com/akavel/rsrc).
 
 ## Release
 Version in `VERSION` erhöhen, optional `release-notes/vX.Y.Z.md`, auf `main` pushen →
@@ -28,12 +36,17 @@ GOOS=windows go test -c -o dist/apptest.exe . && wine dist/apptest.exe -test.v  
 cd tools/uitest && python3 shots.py        # UI-Screenshots mit Playwright (Demo-Daten ohne Bridge)
 cd tools/picosim && python3 test_v2.py     # Firmware in simulierter CircuitPython-Umgebung, rendert OLED
 python3 tools/picosim/test_labels.py       # Textpositionen mit echten Adafruit-Bibliotheken (Blinka)
+cd tools/picosim && python3 test_v23.py    # Menüs „Mikro-Mix“ und „Bluetooth“ (Firmware 2.3)
+tools/mixtest/run.sh 20                    # Mixer unter Wine + PulseAudio: Sinus -> Test-Mikrofon -> Kabel, wertet Aussetzer aus
+tools/picosim/e2e_mix.sh                   # simulierte Firmware bedient das Mix-Menü der echten .exe unter Wine
 ```
+In diesem Container braucht Go `GOPROXY=direct GOSUMDB=off`; vor `apt-get install wine nsis socat xvfb
+pulseaudio sox` erst `apt-get update`. Unter Wine heißt das Programm `wine` (kein `wine64`).
 Wine kann WebView2, Audio-Sitzungen und das Umschalten des Standardgeräts (IPolicyConfig) NICHT
 nachbilden – das muss auf echtem Windows geprüft werden. `tools/picosim/e2e_fw.py` verbindet die
 simulierte Firmware über ein pty (socat) mit der echten .exe unter Wine.
 
-## Stand (30.09.2026)
+## Stand (16.11.2026)
 - 2.0.0: Fenster blieb auf echtem Windows schwarz (WebView2 in verstecktes Fenster eingebettet).
 - 2.0.1: Fenster wird vor dem Einbetten angezeigt, `Show()` + `Resize()` danach, Log-Diagnose,
   Ausweichweg über Datei. **Auf echtem Windows bestätigt: App läuft (30.09.2026).**
@@ -52,6 +65,14 @@ simulierte Firmware über ein pty (socat) mit der echten .exe unter Wine.
   (Vordergrundfenster), Stummschalten per langem Druck (Pico sendet `MUTE`, PC meldet
   `MUTE\t0/1\t<name>`, Ziel `Config.MuteTarget`). Logik in `targets.go`, Tests in
   `targets_test.go`. Kurzer Druck wirkt jetzt beim Loslassen. **Nicht auf echter Hardware geprüft.**
+- 2.3.0 (16.11.2026): Mikro-Mix (Programm-Ton + Mikrofon auf VB-CABLE; `Config.Mix`, Fader-Ziel
+  `mix`, Pico-Menü „Mikro-Mix“: PC sendet `MIXS`, Pico `SETMIX`), Bluetooth-Audiogeräte verbinden/
+  trennen + Akku (PC sendet `BT`, Pico `BTCON`), Oberfläche neu gestaltet (Graphit, Bahnschrift,
+  Bernstein nur für Pegel; neue Seiten „Mikro-Mix“ und „Bluetooth“), neues Symbol, `--selftest`.
+  `pushToPico` schickt jetzt jede Zeile nur noch bei Änderung. Unter Wine geprüft: Mixer
+  (Mikrofon -> Kabel, ohne Aussetzer), Menüs, Protokoll. **Auf echtem Windows NICHT geprüft:
+  Programm-Aufnahme (Process Loopback), alles zu Bluetooth, VB-CABLE-Erkennung.** Wine kann beides
+  nicht nachbilden. Bei Problemen zuerst `MakerDash.exe --selftest` -> `%APPDATA%\MakerDash\selftest.txt`.
 - `tools/picosim/sim.py` nutzt die echten Adafruit-Bibliotheken, wenn Blinka installiert ist
   (`pip install adafruit-blinka-displayio`) – dann sind die Bilder pixelgenau; `SIM_FAKE=1` erzwingt
   die alte Nachbildung. Wine ist per `apt-get install wine64` installierbar.

@@ -5,223 +5,288 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MakerDash</title>
 <style>
+/* MakerDash – Oberfläche. Ruhiges Graphit, Farbe nur für Zustand und Pegel (Bernstein wie eine Aussteuerungsanzeige).
+   Schriften: Bahnschrift (DIN, in Windows enthalten) für Überschriften und Zahlen, Segoe UI für Fließtext. */
 :root{
-  --bg:#0b0d12; --panel:#0f1218; --card:#141821; --card2:#1a1f2a; --line:#232a37; --line2:#2d3545;
-  --text:#e9ecf4; --muted:#8b93a7; --dim:#5d6578;
-  --accent:#7c5cff; --accent2:#22d3ee; --ok:#34d399; --warn:#fbbf24; --err:#f87171;
-  --grad:linear-gradient(135deg,#7c5cff 0%,#22d3ee 100%);
-  --radius:14px; --shadow:0 10px 30px rgba(0,0,0,.35);
+  --bg:#17181b; --side:#121315; --surface:#1d1f23; --raised:#26282d; --line:#2a2c31; --line2:#3b3e45;
+  --text:#ecebe6; --muted:#a3a199; --dim:#6f6e69;
+  --signal:#e8a23a; --ok:#74c08f; --warn:#e8a23a; --err:#e2685d;
+  --r:6px; --rp:10px;
+  --display:"Bahnschrift","DIN Alternate","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
   font-family:"Segoe UI Variable Text","Segoe UI Variable","Segoe UI",system-ui,-apple-system,sans-serif;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased;user-select:none;overflow:hidden}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;user-select:none;overflow:hidden}
 input,textarea{user-select:text}
 button,select,input{font:inherit;color:inherit}
-::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#262d3b;border-radius:10px;border:3px solid var(--bg)}::-webkit-scrollbar-track{background:transparent}
-.app{display:grid;grid-template-columns:236px 1fr;height:100vh}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#33353b;border-radius:10px;border:3px solid var(--bg)}::-webkit-scrollbar-track{background:transparent}
+:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.app{display:grid;grid-template-columns:216px 1fr;height:100vh}
 
 /* ---------- Seitenleiste ---------- */
-.side{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:18px 14px}
-.brand{display:flex;align-items:center;gap:12px;padding:4px 8px 22px}
-.brand .logo{width:36px;height:36px;border-radius:10px;background:var(--grad);display:grid;place-items:center;box-shadow:0 6px 18px rgba(124,92,255,.35)}
-.brand b{font-size:15px;letter-spacing:.2px;display:block}
-.brand small{color:var(--muted);font-size:11.5px}
-.nav{display:flex;flex-direction:column;gap:2px}
-.nav button{all:unset;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;color:var(--muted);cursor:pointer;font-weight:500;position:relative;transition:background .15s,color .15s}
-.nav button:hover{background:#161a23;color:var(--text)}
-.nav button.on{background:#1a1f2b;color:var(--text)}
-.nav button.on::before{content:"";position:absolute;left:-14px;top:9px;bottom:9px;width:3px;border-radius:3px;background:var(--grad)}
-.nav svg{width:18px;height:18px;flex:none}
-.nav .dot{margin-left:auto;width:8px;height:8px;border-radius:50%;background:var(--accent2);box-shadow:0 0 0 3px rgba(34,211,238,.15)}
+.side{background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:22px 0 16px}
+.brand{display:flex;align-items:center;gap:11px;padding:0 22px 26px}
+.brand .logo{width:26px;height:26px;display:grid;place-items:center;color:var(--text)}
+.brand b{font-family:var(--display);font-size:17px;font-weight:600;letter-spacing:.01em;display:block;line-height:1.1}
+.brand small{color:var(--dim);font-size:11.5px}
+.nav{display:flex;flex-direction:column}
+.nav button{all:unset;display:flex;align-items:center;gap:12px;padding:8px 22px;color:var(--muted);cursor:pointer;position:relative;font-size:14px}
+.nav button:hover{color:var(--text);background:rgba(255,255,255,.03)}
+.nav button:focus-visible{outline:2px solid var(--text);outline-offset:-2px}
+.nav button.on{color:var(--text);font-weight:600}
+.nav button.on::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:2px;background:var(--text)}
+.nav svg{width:17px;height:17px;flex:none;opacity:.85}
+.nav hr{border:0;height:1px;background:var(--line);margin:10px 22px}
+.nav .dot{margin-left:auto;width:7px;height:7px;border-radius:50%;background:var(--signal)}
+.nav .tag{margin-left:auto;font-size:11.5px;color:var(--signal);font-family:var(--display);font-weight:600}
 .side .grow{flex:1}
-.conn{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px;display:flex;gap:10px;align-items:center}
-.conn .led{width:10px;height:10px;border-radius:50%;background:var(--dim);flex:none}
-.conn.on .led{background:var(--ok);box-shadow:0 0 0 4px rgba(52,211,153,.15),0 0 12px rgba(52,211,153,.6)}
-.conn.busy .led{background:var(--warn);box-shadow:0 0 0 4px rgba(251,191,36,.15);animation:pulse 1.2s infinite}
-.conn b{display:block;font-size:13px}.conn small{color:var(--muted);font-size:11.5px}
-@keyframes pulse{50%{opacity:.4}}
+.conn{margin:0 14px;border-top:1px solid var(--line);padding:14px 8px 0;display:flex;gap:10px;align-items:flex-start}
+.conn .led{width:8px;height:8px;border-radius:50%;background:var(--dim);flex:none;margin-top:6px}
+.conn.on .led{background:var(--ok)}
+.conn.busy .led{background:var(--warn);animation:pulse 1.2s infinite}
+.conn b{display:block;font-size:13px;font-weight:600}.conn small{color:var(--muted);font-size:11.5px}
+@keyframes pulse{50%{opacity:.35}}
 
 /* ---------- Inhalt ---------- */
 .main{overflow:auto;position:relative}
-.page{display:none;padding:30px 36px 48px;max-width:1080px;animation:fade .25s ease}
+.page{display:none;padding:34px 44px 56px;max-width:1040px}
 .page.on{display:block}
-@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;gap:16px}
-.head h1{margin:0;font-size:26px;font-weight:650;letter-spacing:-.2px;font-family:"Segoe UI Variable Display","Segoe UI",system-ui}
-.head p{margin:6px 0 0;color:var(--muted)}
+.head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:26px;gap:20px}
+.head h1{margin:0;font-family:var(--display);font-size:29px;font-weight:600;letter-spacing:.005em;line-height:1.15}
+.head p{margin:7px 0 0;color:var(--muted);max-width:62ch}
+h3{font-family:var(--display);font-size:16px;font-weight:600;letter-spacing:.01em;margin:0 0 4px}
 .grid{display:grid;gap:16px}
 .g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px}
-.card h3{margin:0 0 4px;font-size:15px;font-weight:600}
-.card .sub{color:var(--muted);font-size:12.5px;margin:0 0 14px}
-.row{display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid var(--line)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--rp);padding:20px 22px}
+.card .sub{color:var(--muted);font-size:13px;margin:0 0 12px;max-width:70ch}
+.row{display:flex;align-items:center;gap:16px;padding:13px 0;border-top:1px solid var(--line);min-height:52px}
 .row:first-of-type{border-top:0}
 .row .lbl{flex:1;min-width:0}
-.row .lbl b{font-weight:550;display:block}
-.row .lbl small{color:var(--muted);font-size:12.5px;display:block;margin-top:2px}
+.row .lbl b{font-weight:600;display:block}
+.row .lbl small{color:var(--muted);font-size:12.5px;display:block;margin-top:2px;max-width:64ch}
 .muted{color:var(--muted)}.dim{color:var(--dim)}
 .mt{margin-top:16px}
+.num{font-family:var(--display);font-variant-numeric:tabular-nums}
 
 /* ---------- Steuerelemente ---------- */
-.btn{all:unset;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 16px;border-radius:10px;background:var(--card2);border:1px solid var(--line2);font-weight:550;cursor:pointer;transition:filter .15s,transform .05s,background .15s;white-space:nowrap}
-.btn:hover{background:#212736}.btn:active{transform:translateY(1px)}
-.btn.primary{background:var(--grad);border-color:transparent;color:#fff;box-shadow:0 6px 18px rgba(124,92,255,.3)}
-.btn.primary:hover{filter:brightness(1.08)}
-.btn.small{height:30px;padding:0 12px;font-size:12.5px;border-radius:8px}
-.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}.btn.ghost:hover{color:var(--text);background:#1a1f2a}
-.btn[disabled]{opacity:.45;pointer-events:none}
+.btn{all:unset;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:34px;padding:0 15px;border-radius:var(--r);background:var(--raised);border:1px solid var(--line2);font-weight:600;font-size:13.5px;cursor:pointer;white-space:nowrap;box-sizing:border-box}
+.btn:hover{background:#2e3036}.btn:active{background:#222428}
+.btn:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.btn.primary{background:var(--text);border-color:var(--text);color:#17181b}
+.btn.primary:hover{background:#fff}
+.btn.small{height:30px;padding:0 12px;font-size:12.5px}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}.btn.ghost:hover{color:var(--text);background:rgba(255,255,255,.05)}
+.btn[disabled]{opacity:.4;pointer-events:none}
 .btn svg{width:16px;height:16px}
-.sel{position:relative;display:inline-block;min-width:180px}
-.sel select{appearance:none;width:100%;height:36px;border-radius:10px;border:1px solid var(--line2);background:var(--card2);padding:0 34px 0 12px;cursor:pointer;outline:none}
-.sel select:focus{border-color:var(--accent)}
-.sel::after{content:"";position:absolute;right:13px;top:14px;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);pointer-events:none}
+.sel{position:relative;display:inline-block;min-width:190px}
+.sel select{appearance:none;width:100%;height:34px;border-radius:var(--r);border:1px solid var(--line2);background:var(--raised);padding:0 32px 0 11px;cursor:pointer;outline:none;text-overflow:ellipsis}
+.sel select:hover{border-color:#4a4d55}
+.sel select:focus-visible{border-color:var(--text)}
+.sel::after{content:"";position:absolute;right:13px;top:12px;width:6px;height:6px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(45deg);pointer-events:none}
 .sel.bad select{border-color:var(--err)}
-option{background:#1a1f2a}
-.inp{height:34px;border-radius:9px;border:1px solid var(--line2);background:#10141b;padding:0 12px;outline:none;min-width:0}
-.inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,255,.18)}
+option,optgroup{background:#26282d}
+.inp{height:34px;border-radius:var(--r);border:1px solid var(--line2);background:#141517;padding:0 11px;outline:none;min-width:0}
+.inp:focus{border-color:var(--text)}
 .inp::placeholder{color:var(--dim)}
-.tg{position:relative;width:42px;height:24px;flex:none;cursor:pointer}
-.tg input{display:none}
-.tg span{position:absolute;inset:0;border-radius:24px;background:#2a3140;transition:background .2s}
-.tg span::after{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#cfd5e2;transition:transform .2s cubic-bezier(.3,1.4,.6,1),background .2s}
-.tg input:checked+span{background:var(--accent)}
-.tg input:checked+span::after{transform:translateX(18px);background:#fff}
-.seg{display:inline-flex;background:#10141b;border:1px solid var(--line2);border-radius:10px;padding:3px;gap:2px}
-.seg button{all:unset;padding:6px 12px;border-radius:7px;color:var(--muted);cursor:pointer;font-weight:550;font-size:13px}
-.seg button.on{background:var(--card2);color:var(--text);box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 2px 6px rgba(0,0,0,.3)}
-input[type=range]{appearance:none;width:220px;height:6px;border-radius:6px;background:linear-gradient(90deg,var(--accent) var(--p,50%),#2a3140 var(--p,50%));outline:none;cursor:pointer}
-input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4)}
-.badge{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:20px;font-size:11.5px;font-weight:600;background:#1f2533;color:var(--muted)}
-.badge.ok{background:rgba(52,211,153,.12);color:var(--ok)}
-.badge.warn{background:rgba(251,191,36,.12);color:var(--warn)}
-.badge.err{background:rgba(248,113,113,.12);color:var(--err)}
-.badge.acc{background:rgba(124,92,255,.15);color:#b3a3ff}
-.badge .d{width:6px;height:6px;border-radius:50%;background:currentColor}
-.bar{height:8px;border-radius:8px;background:#222836;overflow:hidden}
-.bar i{display:block;height:100%;width:0;background:var(--grad);border-radius:8px;transition:width .25s ease}
+.tg{display:inline-block;position:relative;width:38px;height:22px;flex:none;cursor:pointer}
+.tg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.tg span{position:absolute;inset:0;border-radius:22px;background:#34363c;border:1px solid var(--line2);transition:background .15s;pointer-events:none}
+.tg span::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#9d9b94;transition:transform .15s,background .15s}
+.tg input:checked+span{background:var(--text);border-color:var(--text)}
+.tg input:checked+span::after{transform:translateX(16px);background:#17181b}
+.tg input:focus-visible+span{outline:2px solid var(--text);outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r);overflow:hidden}
+.seg button{all:unset;padding:6px 14px;color:var(--muted);cursor:pointer;font-weight:600;font-size:13px;border-left:1px solid var(--line2)}
+.seg button:first-child{border-left:0}
+.seg button.on{background:var(--raised);color:var(--text)}
+input[type=range]{appearance:none;width:220px;height:4px;border-radius:4px;background:linear-gradient(90deg,var(--text) var(--p,50%),#3a3c42 var(--p,50%));outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:14px;height:14px;border-radius:50%;background:var(--text);border:3px solid var(--surface);box-shadow:0 0 0 1px var(--text)}
+input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 2px var(--text)}
+.badge{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--muted);white-space:nowrap}
+.badge.ok{color:var(--ok)}.badge.warn{color:var(--warn)}.badge.err{color:var(--err)}.badge.acc{color:var(--text)}
+.badge .d{width:7px;height:7px;border-radius:50%;background:currentColor}
+.bar{height:4px;border-radius:4px;background:#34363c;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--text);transition:width .25s ease}
 .bar.indet i{width:35%!important;animation:indet 1.1s ease-in-out infinite}
 @keyframes indet{from{transform:translateX(-100%)}to{transform:translateX(290%)}}
-.spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:rot .8s linear infinite;display:inline-block}
+.spin{width:16px;height:16px;border:2px solid rgba(236,235,230,.22);border-top-color:var(--text);border-radius:50%;animation:rot .8s linear infinite;display:inline-block}
 @keyframes rot{to{transform:rotate(360deg)}}
+/* Pegelanzeige aus einzelnen Segmenten, wie an einem Mischpult */
+.meter{height:12px;background:repeating-linear-gradient(90deg,#303238 0 4px,transparent 4px 6px);position:relative;min-width:60px}
+.meter i{position:absolute;inset:0 auto 0 0;width:0;background:repeating-linear-gradient(90deg,var(--signal) 0 4px,transparent 4px 6px)}
+.meter.off i{background:repeating-linear-gradient(90deg,#55575e 0 4px,transparent 4px 6px)}
 
 /* ---------- Übersicht ---------- */
-.hero{display:grid;grid-template-columns:minmax(0,.8fr) 1fr;gap:22px;align-items:center;padding:22px;position:relative;overflow:hidden}
-.hero::before{content:"";position:absolute;inset:-40% -10% auto auto;width:520px;height:520px;background:radial-gradient(closest-side,rgba(124,92,255,.18),transparent);pointer-events:none}
-.hero::after{content:"";position:absolute;inset:auto auto -50% -10%;width:460px;height:460px;background:radial-gradient(closest-side,rgba(34,211,238,.10),transparent);pointer-events:none}
-.devsvg{display:block;margin:0 auto;height:430px;max-width:100%;filter:drop-shadow(0 18px 30px rgba(0,0,0,.45))}
+.over{display:grid;grid-template-columns:minmax(210px,270px) minmax(0,1fr);gap:48px;align-items:start}
+.devsvg{display:block;width:100%;height:auto;max-height:520px}
 .devsvg .knob{transition:transform .12s linear}
-.stat h2{margin:0 0 10px;font-size:22px;font-weight:650}
-.kv{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;margin-top:16px;font-size:13.5px}
-.kv span{color:var(--muted)}
-.fader{position:relative;overflow:hidden}
-.fader .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;height:22px}
-.fader .num{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.4px;text-transform:uppercase}
-.fader .pct{font-size:34px;font-weight:650;font-family:"Segoe UI Variable Display","Segoe UI",system-ui;letter-spacing:-.5px;margin:14px 0 10px;font-variant-numeric:tabular-nums}
-.fader .pct small{font-size:16px;color:var(--muted);margin-left:2px}
-.fader .sel{width:100%}
-.fader .bar{height:10px}
-.fader .bar i{transition:width .08s linear}
-.groups{display:grid;gap:12px}
-.grp{border:1px solid var(--line);border-radius:14px;padding:14px;background:#141922}
-.grp .gh{display:flex;gap:10px;align-items:center;margin-bottom:12px}
-.grp .gh .inp{flex:1;max-width:280px;font-weight:600}
-.grp .gh .muted{font-size:12px;flex:1}
-.chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{height:30px;padding:0 12px;border-radius:16px;border:1px solid var(--line2);background:#10141b;color:var(--muted);cursor:pointer;font:inherit;font-size:12.5px;display:inline-flex;align-items:center;gap:6px}
-.chip:hover{border-color:#3a4356;color:var(--text,#e6e9f0)}
-.chip.on{background:rgba(124,92,255,.18);border-color:var(--accent);color:#fff}
+.strip h3{margin:0 0 6px}
+.strip h3+*{margin-top:0}
+.strip section{margin-bottom:30px}
+.ch{display:grid;grid-template-columns:22px minmax(170px,240px) minmax(60px,1fr) 58px;gap:16px;align-items:center;padding:11px 0;border-top:1px solid var(--line)}
+.ch .n{font-family:var(--display);font-size:18px;font-weight:600;color:var(--muted)}
+.ch .sel{min-width:0;width:100%}
+.ch .pct{font-family:var(--display);font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right;line-height:1}
+.ch .pct small{font-size:12px;color:var(--muted);margin-left:2px;font-weight:400}
+.ch .kind{grid-column:2/-1;margin-top:-6px;font-size:12px;color:var(--dim)}
+.kvrow{display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:16px;align-items:center;padding:10px 0;border-top:1px solid var(--line);min-height:54px}
+.kvrow>span:first-child{color:var(--muted)}
+.kvrow .sel{min-width:0;width:100%;max-width:340px}
+.kvrow .v{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.link{all:unset;color:var(--muted);cursor:pointer;font-size:13px;text-decoration:underline;text-decoration-color:var(--line2);text-underline-offset:3px}
+.link:hover{color:var(--text);text-decoration-color:var(--text)}
+.link:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+
+/* ---------- Programme / Gruppen ---------- */
+.groups{display:grid;gap:0}
+.grp{border-top:1px solid var(--line);padding:14px 0}
+.grp .gh{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.grp .gh .inp{flex:1;max-width:260px;font-weight:600}
+.grp .gh .muted{font-size:12.5px;flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{height:28px;padding:0 11px;border-radius:var(--r);border:1px solid var(--line2);background:transparent;color:var(--muted);cursor:pointer;font:inherit;font-size:12.5px;display:inline-flex;align-items:center;gap:7px}
+.chip:hover{border-color:#55585f;color:var(--text)}
+.chip.on{background:var(--text);border-color:var(--text);color:#17181b;font-weight:600}
 .chip i{width:6px;height:6px;border-radius:50%;background:var(--ok)}
-.quick{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.quick .card{display:flex;align-items:center;gap:14px}
-.quick .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:#1c2230;flex:none}
-.quick .ic svg{width:20px;height:20px;color:var(--accent2)}
-.quick .sel{flex:1}
+.chip.on i{background:#2d7a4b}
 
 /* ---------- Listen ---------- */
-.list .item{display:grid;grid-template-columns:38px 1fr 210px 54px 36px;align-items:center;gap:14px;padding:10px 6px;border-top:1px solid var(--line)}
+.list{padding:6px 22px}
+.list .item{display:grid;grid-template-columns:34px 1fr 210px 44px 34px;align-items:center;gap:14px;padding:11px 0;border-top:1px solid var(--line)}
 .list .item:first-child{border-top:0}
-.av{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-weight:700;font-size:15px;color:#fff}
+.av{width:34px;height:34px;border-radius:var(--r);display:grid;place-items:center;font-family:var(--display);font-weight:600;font-size:15px;color:var(--text);background:var(--raised);border:1px solid var(--line2)}
 .item .nm{min-width:0}
-.item .nm b{display:block;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.item .nm small{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:12px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.item.off .nm b,.item.off .av{opacity:.55}
-.live{width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block;box-shadow:0 0 8px rgba(52,211,153,.7)}
-.empty{padding:34px;text-align:center;color:var(--muted)}
-.empty svg{width:36px;height:36px;color:var(--dim);margin-bottom:10px}
-.toolbar{display:flex;gap:12px;align-items:center;margin-bottom:14px}
-.toolbar .inp{flex:1;max-width:320px;padding-left:36px;background:#10141b url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%235d6578' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='5'/%3E%3Cpath d='m11 11 3.5 3.5'/%3E%3C/svg%3E") 12px 50% no-repeat}
-.iconbtn{all:unset;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--dim);cursor:pointer}
-.iconbtn:hover{background:#1f2533;color:var(--text)}
+.item .nm b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .nm small{display:flex;gap:7px;align-items:center;color:var(--muted);font-size:12.5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item.off .nm b,.item.off .av{opacity:.5}
+.live{width:6px;height:6px;border-radius:50%;background:var(--ok);display:inline-block}
+.empty{padding:38px 20px;text-align:center;color:var(--muted)}
+.empty svg{width:30px;height:30px;color:var(--dim);margin-bottom:10px}
+.empty p{margin:6px auto 0;max-width:52ch;font-size:13px;color:var(--dim)}
+.toolbar{display:flex;gap:12px;align-items:center;margin:26px 0 12px}
+.toolbar h3{margin:0;flex:1}
+.toolbar .inp{width:260px;padding-left:34px;background:#141517 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%236f6e69' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='5'/%3E%3Cpath d='m11 11 3.5 3.5'/%3E%3C/svg%3E") 11px 50% no-repeat}
+.iconbtn{all:unset;width:32px;height:32px;border-radius:var(--r);display:grid;place-items:center;color:var(--dim);cursor:pointer}
+.iconbtn:hover{background:var(--raised);color:var(--text)}
+.iconbtn:focus-visible{outline:2px solid var(--text)}
 .iconbtn svg{width:16px;height:16px}
 
+/* ---------- Mikro-Mix ---------- */
+.flow{display:grid;grid-template-columns:minmax(0,1fr) 54px minmax(210px,260px);align-items:stretch}
+.flow .src{display:grid;grid-template-rows:1fr 1fr;gap:12px}
+.srow{background:var(--surface);border:1px solid var(--line);border-radius:var(--rp);padding:16px 18px;display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:10px 18px;align-items:center}
+.srow b{font-family:var(--display);font-size:16px;font-weight:600;letter-spacing:.01em}
+.srow .sel{min-width:0;width:100%;grid-column:1}
+.srow .vol{display:flex;align-items:center;gap:10px;justify-content:flex-end}
+.srow .vol input{width:100%}
+.srow .vol span{width:54px;text-align:right;color:var(--muted);white-space:nowrap;flex:none}
+.srow .meter{grid-column:1/-1}
+.srow .cap{justify-self:end;font-size:12.5px;color:var(--muted)}
+.flow .join{display:block;width:54px;height:100%;color:var(--line2)}
+.flow.is-live .join{color:var(--signal)}
+.flow .dst{background:var(--surface);border:1px solid var(--line);border-radius:var(--rp);padding:18px;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.flow .dst b{font-family:var(--display);font-size:19px;font-weight:600;line-height:1.2}
+.flow .dst small{color:var(--muted);font-size:12.5px}
+.flow.is-idle .srow,.flow.is-idle .dst{opacity:.55}
+.steps{margin:0;padding:0;list-style:none;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:30px 1fr auto;gap:14px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
+.steps li:first-child{border-top:0}
+.steps li::before{content:counter(s);font-family:var(--display);font-size:20px;font-weight:600;color:var(--muted)}
+.steps b{display:block;font-weight:600}.steps small{color:var(--muted);font-size:12.5px;display:block;margin-top:2px;max-width:62ch}
+.headtg{display:flex;align-items:center;gap:12px;font-weight:600;white-space:nowrap}
+
+/* ---------- Bluetooth ---------- */
+.bt{display:grid;grid-template-columns:34px minmax(0,1fr) 130px 120px;gap:16px;align-items:center;padding:13px 0;border-top:1px solid var(--line)}
+.bt:first-child{border-top:0}
+.bt .nm b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bt .nm small{color:var(--muted);font-size:12.5px;display:flex;align-items:center;gap:7px;margin-top:2px}
+.bt.off .av,.bt.off .nm b{opacity:.55}
+.batt{display:flex;align-items:center;gap:9px;justify-content:flex-end;color:var(--muted)}
+.batt .cell{width:30px;height:13px;border:1px solid var(--muted);border-radius:3px;padding:1.5px;position:relative}
+.batt .cell::after{content:"";position:absolute;right:-4px;top:3px;width:2px;height:5px;background:var(--muted);border-radius:0 1px 1px 0}
+.batt .cell i{display:block;height:100%;background:var(--text);border-radius:1px}
+.batt.low .cell i{background:var(--err)}
+.batt span{font-family:var(--display);font-variant-numeric:tabular-nums;font-size:15px;font-weight:600;color:var(--text);min-width:40px;text-align:right}
+.bt .btn{justify-self:end;min-width:104px}
+
 /* ---------- Pins ---------- */
-.pins{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.pin label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:550}
+.pins{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.pin label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px}
 .pin .sel{width:100%;min-width:0}
-.pinfoot{display:flex;align-items:center;gap:12px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
-.warnbox{display:flex;gap:10px;align-items:flex-start;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);color:#f5d27a;border-radius:10px;padding:10px 12px;font-size:13px}
-.errbox{display:flex;gap:10px;align-items:flex-start;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.28);color:#fca5a5;border-radius:10px;padding:10px 12px;font-size:13px}
+.pinfoot{display:flex;align-items:center;gap:12px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.warnbox,.errbox{display:flex;gap:11px;align-items:flex-start;border-left:2px solid var(--warn);background:rgba(232,162,58,.06);border-radius:0 var(--r) var(--r) 0;padding:11px 14px;font-size:13.5px}
+.errbox{border-left-color:var(--err);background:rgba(226,104,93,.07)}
+.warnbox svg{color:var(--warn)}.errbox svg{color:var(--err)}
 .warnbox svg,.errbox svg{width:18px;height:18px;flex:none;margin-top:1px}
+.warnbox .link,.errbox .link{margin-left:8px}
+.notice{margin-bottom:18px;display:grid;gap:10px}
 
 /* ---------- Updates ---------- */
 .upd{display:flex;gap:18px;align-items:center}
-.upd .big{width:64px;height:64px;border-radius:18px;background:var(--grad);display:grid;place-items:center;flex:none;box-shadow:0 10px 24px rgba(124,92,255,.35)}
-.upd .big svg{width:30px;height:30px;color:#fff}
-.upd h2{margin:0;font-size:19px}
-.notes{background:#10141b;border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-top:16px;max-height:260px;overflow:auto;color:#c9cfdc;line-height:1.55}
-.notes h4{margin:10px 0 4px;color:var(--text)}.notes ul{margin:4px 0;padding-left:20px}.notes p{margin:6px 0}
+.upd .big{width:46px;height:46px;border-radius:50%;border:1px solid var(--line2);display:grid;place-items:center;flex:none;color:var(--text)}
+.upd .big svg{width:22px;height:22px}
+.upd h2{margin:0;font-family:var(--display);font-size:20px;font-weight:600}
+.notes{border-top:1px solid var(--line);margin-top:18px;padding-top:6px;max-height:280px;overflow:auto;color:#cfcdc6;line-height:1.55}
+.notes h4{margin:14px 0 4px;color:var(--text);font-family:var(--display);font-size:15px}.notes ul{margin:4px 0;padding-left:20px}.notes p{margin:6px 0;max-width:72ch}
 
 /* ---------- Toasts ---------- */
 .toasts{position:fixed;right:22px;bottom:22px;display:flex;flex-direction:column;gap:10px;z-index:50}
-.toast{display:flex;gap:10px;align-items:center;min-width:260px;max-width:420px;background:#1b2130;border:1px solid var(--line2);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow);animation:tin .25s ease}
-.toast svg{width:18px;height:18px;flex:none}
-.toast.ok svg{color:var(--ok)}.toast.error svg{color:var(--err)}.toast.info svg{color:var(--accent2)}
-.toast.out{animation:tout .25s ease forwards}
-@keyframes tin{from{opacity:0;transform:translateY(10px) scale(.98)}}
-@keyframes tout{to{opacity:0;transform:translateY(10px)}}
+.toast{display:flex;gap:11px;align-items:flex-start;min-width:260px;max-width:440px;background:var(--raised);border:1px solid var(--line2);border-radius:var(--r);padding:12px 14px;box-shadow:0 12px 28px rgba(0,0,0,.4);animation:tin .2s ease}
+.toast svg{width:18px;height:18px;flex:none;margin-top:1px}
+.toast.ok svg{color:var(--ok)}.toast.error svg{color:var(--err)}.toast.info svg{color:var(--muted)}
+.toast.out{animation:tout .2s ease forwards}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}}
+@keyframes tout{to{opacity:0;transform:translateY(8px)}}
 
 /* ---------- Einrichtung ---------- */
-.wiz{position:fixed;inset:0;z-index:40;background:radial-gradient(1200px 600px at 20% -10%,rgba(124,92,255,.22),transparent),radial-gradient(900px 500px at 110% 110%,rgba(34,211,238,.14),transparent),var(--bg);display:none;place-items:center}
-.wiz.on{display:grid;animation:fade .3s}
-.wbox{width:min(640px,92vw);background:rgba(20,24,33,.92);border:1px solid var(--line2);border-radius:22px;padding:34px 38px;box-shadow:0 30px 80px rgba(0,0,0,.5);backdrop-filter:blur(10px)}
-.wsteps{display:flex;gap:8px;margin-bottom:26px}
-.wsteps i{height:4px;flex:1;border-radius:4px;background:#262d3b}
-.wsteps i.on{background:var(--grad)}
-.wbox h2{margin:0 0 8px;font-size:24px;font-weight:650}
-.wbox p{color:var(--muted);line-height:1.55;margin:0 0 18px}
-.wfoot{display:flex;justify-content:space-between;align-items:center;margin-top:26px}
-.wstate{display:flex;gap:16px;align-items:center;background:#10141b;border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:8px 0}
-.wstate .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:#1c2230;flex:none}
-.wstate .ic svg{width:22px;height:22px}
-.wstate b{display:block;margin-bottom:3px}.wstate small{color:var(--muted)}
-.radar{position:relative;width:44px;height:44px;flex:none}
-.radar::before,.radar::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent2);animation:radar 1.8s ease-out infinite;opacity:0}
+.wiz{position:fixed;inset:0;z-index:40;background:var(--bg);display:none;place-items:center}
+.wiz.on{display:grid}
+.wbox{width:min(620px,92vw);padding:8px}
+.wsteps{display:flex;gap:6px;margin-bottom:34px}
+.wsteps i{height:2px;flex:1;background:var(--line2)}
+.wsteps i.on{background:var(--text)}
+.wbox h2{margin:0 0 10px;font-family:var(--display);font-size:30px;font-weight:600;line-height:1.15}
+.wbox p{color:var(--muted);line-height:1.55;margin:0 0 20px;max-width:60ch}
+.wfoot{display:flex;justify-content:space-between;align-items:center;margin-top:30px;padding-top:18px;border-top:1px solid var(--line)}
+.wstate{display:flex;gap:16px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--rp);padding:16px 18px;margin:8px 0}
+.wstate .ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line2);flex:none;color:var(--text)}
+.wstate .ic.ok{color:var(--ok);border-color:var(--ok)}
+.wstate .ic svg{width:20px;height:20px}
+.wstate b{display:block;margin-bottom:2px;font-weight:600}.wstate small{color:var(--muted)}
+.radar{position:relative;width:40px;height:40px;flex:none}
+.radar::before,.radar::after{content:"";position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--muted);animation:radar 1.8s ease-out infinite;opacity:0}
 .radar::after{animation-delay:.9s}
-.radar i{position:absolute;inset:15px;border-radius:50%;background:var(--accent2)}
-@keyframes radar{0%{transform:scale(.3);opacity:.9}100%{transform:scale(1.15);opacity:0}}
+.radar i{position:absolute;inset:15px;border-radius:50%;background:var(--text)}
+@keyframes radar{0%{transform:scale(.3);opacity:.9}100%{transform:scale(1.1);opacity:0}}
 .wf{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px}
-.wf > div{background:#10141b;border:1px solid var(--line);border-radius:12px;padding:12px}
-.wf b{font-size:12.5px;color:var(--muted);display:block;margin-bottom:8px}
-.wf .ok b{color:var(--ok)}
+.wf > div{background:var(--surface);border:1px solid var(--line);border-radius:var(--rp);padding:14px}
+.wf b{font-size:13px;color:var(--muted);display:block;margin-bottom:10px;font-weight:600}
+.wf .ok{border-color:var(--ok)}.wf .ok b{color:var(--ok)}
 .hl{color:var(--text);font-weight:600}
-kbd{background:#222838;border:1px solid var(--line2);border-bottom-width:2px;border-radius:6px;padding:1px 6px;font-size:12px;font-family:inherit}
+kbd{background:var(--raised);border:1px solid var(--line2);border-radius:4px;padding:1px 6px;font-size:12.5px;font-family:inherit}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01s!important;transition:none!important}}
+@media (max-width:980px){.over{grid-template-columns:1fr;gap:24px}.devsvg{max-height:320px}.flow{grid-template-columns:1fr}.flow .join{display:none}.flow .dst{margin-top:12px}}
 </style>
 </head>
 <body>
 <div class="app">
   <aside class="side">
     <div class="brand">
-      <div class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M6 4v16M12 4v16M18 4v16"/><rect x="3.5" y="12" width="5" height="3.2" rx="1.2" fill="#fff" stroke="none"/><rect x="9.5" y="6.5" width="5" height="3.2" rx="1.2" fill="#fff" stroke="none"/><rect x="15.5" y="10" width="5" height="3.2" rx="1.2" fill="#fff" stroke="none"/></svg></div>
+      <div class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 3.5v17M12 3.5v17M18 3.5v17"/><rect x="3.5" y="12" width="5" height="3.4" rx="1" fill="currentColor" stroke="none"/><rect x="9.5" y="6" width="5" height="3.4" rx="1" fill="currentColor" stroke="none"/><rect x="15.5" y="14.5" width="5" height="3.4" rx="1" fill="currentColor" stroke="none"/></svg></div>
       <div><b>MakerDash</b><small id="verSide">Version –</small></div>
     </div>
     <nav class="nav" id="nav">
-      <button data-p="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Übersicht</button>
-      <button data-p="apps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="14" rx="3"/><path d="M8 21h8M12 18v3"/></svg>Programme</button>
-      <button data-p="devices"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>Audiogeräte</button>
-      <button data-p="device"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 4v16M12 4v16M19 4v16"/><rect x="3" y="13" width="4" height="3" rx="1"/><rect x="10" y="7" width="4" height="3" rx="1"/><rect x="17" y="11" width="4" height="3" rx="1"/></svg>Dashboard</button>
-      <button data-p="updates"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m0 0 4.5-4.5M12 15l-4.5-4.5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Updates<i class="dot" id="updDot" hidden></i></button>
-      <button data-p="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Einstellungen</button>
+      <button data-p="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M6 4v16M12 4v16M18 4v16"/><path d="M4 14h4M10 8h4M16 12h4" stroke-width="3"/></svg>Übersicht</button>
+      <hr>
+      <button data-p="apps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3" y="4.5" width="18" height="13" rx="2"/><path d="M8.5 20.5h7M12 17.5v3"/></svg>Programme</button>
+      <button data-p="devices"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5.5 6.5 9H3.5v6h3l4.500 3.500v-13z"/><path d="M15.500 9a4.500 4.500 0 0 1 0 6M18.500 6.500a8.500 8.500 0 0 1 0 11"/></svg>Audiogeräte</button>
+      <button data-p="mix"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.500 11.500a6.500 6.500 0 0 0 13 0M12 18v3"/></svg>Mikro-Mix<span class="tag" id="mixTag" hidden>an</span></button>
+      <button data-p="bluetooth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m7 8 10 8-5 4.500v-17L17 8 7 16"/></svg>Bluetooth</button>
+      <hr>
+      <button data-p="device"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="5" y="2.500" width="14" height="19" rx="2.500"/><rect x="8.500" y="5.500" width="7" height="4" rx=".8"/><circle cx="12" cy="16" r="2.200"/></svg>Dashboard</button>
+      <button data-p="updates"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.500v11m0 0 4-4m-4 4-4-4"/><path d="M4.500 17v1.500a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V17"/></svg>Updates<i class="dot" id="updDot" hidden></i></button>
+      <button data-p="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/></svg>Einstellungen</button>
     </nav>
     <div class="grow"></div>
     <div class="conn" id="conn"><i class="led"></i><div><b id="connT">Nicht verbunden</b><small id="connS">Suche Dashboard …</small></div></div>
@@ -230,54 +295,94 @@ kbd{background:#222838;border:1px solid var(--line2);border-bottom-width:2px;bor
   <main class="main" id="main">
     <!-- Übersicht -->
     <section class="page" id="p-overview">
-      <div class="head"><div><h1>Übersicht</h1><p>Live-Zustand deines Dashboards</p></div></div>
-      <div class="card hero">
+      <div class="head"><div><h1>Übersicht</h1><p id="heroSub"></p></div><div id="heroBadge"></div></div>
+      <div id="heroAct" class="notice"></div>
+      <div class="over">
         <div id="devArt"></div>
-        <div class="stat">
-          <div id="heroBadge"></div>
-          <h2 id="heroTitle">MakerDash</h2>
-          <div class="muted" id="heroSub"></div>
-          <div class="kv" id="heroKV"></div>
-          <div id="heroAct" class="mt"></div>
+        <div class="strip">
+          <section><h3>Fader</h3><div id="faders"></div></section>
+          <section><h3>Windows</h3>
+            <div class="kvrow"><span>Ausgabe</span><div class="sel"><select id="qOut" aria-label="Ausgabegerät"></select></div><span></span></div>
+            <div class="kvrow"><span>Mikrofon</span><div class="sel"><select id="qIn" aria-label="Mikrofon"></select></div><span></span></div>
+            <div id="heroKV"></div>
+          </section>
         </div>
-      </div>
-      <div class="grid g3 mt" id="faders"></div>
-      <div class="quick mt">
-        <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></div><div style="flex:1;min-width:0"><div class="muted" style="font-size:12px;margin-bottom:6px">Ausgabegerät</div><div class="sel" style="width:100%"><select id="qOut"></select></div></div></div>
-        <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div><div style="flex:1;min-width:0"><div class="muted" style="font-size:12px;margin-bottom:6px">Mikrofon</div><div class="sel" style="width:100%"><select id="qIn"></select></div></div></div>
       </div>
     </section>
 
     <!-- Programme -->
     <section class="page" id="p-apps">
-      <div class="head"><div><h1>Programme</h1><p>Gruppen bilden, Programme im Menü „Fader 3“ zeigen und auf dem Display benennen</p></div></div>
-      <div class="card" style="margin-bottom:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-          <div><h3 style="margin:0">Gruppen</h3><p class="sub" style="margin:4px 0 0">Mehrere Programme auf einem Fader – z. B. alle Spiele oder Musik und Browser zusammen</p></div>
-          <button class="btn small" id="addGroup">+ Neue Gruppe</button>
+      <div class="head"><div><h1>Programme</h1><p>Lege fest, welche Programme im Menü des Dashboards erscheinen und wie sie auf dem Display heißen.</p></div></div>
+      <div class="card">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+          <div><h3>Gruppen</h3><p class="sub" style="margin-bottom:14px">Mehrere Programme auf einem Fader – zum Beispiel alle Spiele, oder Musik und Browser zusammen.</p></div>
+          <button class="btn small" id="addGroup">Neue Gruppe</button>
         </div>
-        <div class="groups mt" id="groupList"></div>
+        <div class="groups" id="groupList"></div>
       </div>
-      <div class="toolbar"><input class="inp" id="appSearch" placeholder="Suchen …"></div>
+      <div class="toolbar"><h3>Alle Programme</h3><input class="inp" id="appSearch" placeholder="Suchen" aria-label="Programme durchsuchen"></div>
       <div class="card list" id="appList"></div>
     </section>
 
     <!-- Audiogeräte -->
     <section class="page" id="p-devices">
-      <div class="head"><div><h1>Audiogeräte</h1><p>Standardgerät wählen, im Menü ausblenden oder kürzer benennen</p></div>
+      <div class="head"><div><h1>Audiogeräte</h1><p>Standardgerät wählen, Geräte im Menü ausblenden oder kürzer benennen.</p></div>
         <div class="seg" id="devSeg"><button data-k="out" class="on">Ausgabe</button><button data-k="in">Mikrofone</button></div></div>
       <div class="card list" id="devList"></div>
     </section>
 
+    <!-- Mikro-Mix -->
+    <section class="page" id="p-mix">
+      <div class="head"><div><h1>Mikro-Mix</h1><p>Legt den Ton eines Programms zu deiner Stimme. Andere hören beides zusammen – in Discord, OBS oder im Spiele-Chat.</p></div>
+        <label class="headtg"><span id="mixOnT">Aus</span><span class="tg"><input type="checkbox" id="mixOn" aria-label="Mikro-Mix einschalten"><span></span></span></label></div>
+      <div id="mixWarn" class="notice"></div>
+      <div id="mixSetup"></div>
+      <div id="mixBody">
+        <div class="flow" id="mixFlow">
+          <div class="src">
+            <div class="srow">
+              <b>Mikrofon</b><span class="cap">Lautstärke</span>
+              <div class="sel"><select id="mixMic" aria-label="Mikrofon für den Mix"></select></div>
+              <div class="vol"><input type="range" id="mixMicVol" min="0" max="100" step="1" aria-label="Lautstärke Mikrofon"><span class="num" id="mixMicV"></span></div>
+              <div class="meter" id="mMic"><i></i></div>
+            </div>
+            <div class="srow">
+              <b>Programm</b><span class="cap">Lautstärke</span>
+              <div class="sel"><select id="mixSrc" aria-label="Programm für den Mix"></select></div>
+              <div class="vol"><input type="range" id="mixAppVol" min="0" max="100" step="1" aria-label="Lautstärke Programm"><span class="num" id="mixAppV"></span></div>
+              <div class="meter" id="mApp"><i></i></div>
+            </div>
+          </div>
+          <svg class="join" viewBox="0 0 54 200" preserveAspectRatio="none" aria-hidden="true"><path d="M0 50h20a8 8 0 0 1 8 8v84a8 8 0 0 1-8 8H0M28 100h20" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke"/><path d="m44 94 8 6-8 6" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>
+          <div class="dst" id="mixDst"></div>
+        </div>
+        <div class="card mt">
+          <h3>So benutzt du den Mix</h3>
+          <div class="row"><div class="lbl"><b>In Discord, OBS oder im Spiel</b><small>Als Mikrofon bzw. Eingabegerät einmal <span class="hl" id="mixRecName">CABLE Output</span> auswählen. Dein Windows-Standardmikrofon bleibt, wie es ist.</small></div></div>
+          <div class="row"><div class="lbl"><b>Am Dashboard</b><small>Drehgeber drücken, <span class="hl">Mikro-Mix</span> öffnen und ein Programm wählen. „Aus“ lässt nur noch deine Stimme durch.</small></div></div>
+          <div class="row"><div class="lbl"><b>Mit einem Fader regeln</b><small>Wähle in der Übersicht für einen Fader das Ziel <span class="hl">Mikro-Mix</span> – er bestimmt dann, wie laut das Programm bei den anderen ankommt.</small></div></div>
+          <div class="row"><div class="lbl"><b>Du hörst das Programm weiter wie gewohnt</b><small>Der Mix nimmt den Ton nur zusätzlich ab. An deinen Lautsprechern oder Kopfhörern ändert sich nichts.</small></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bluetooth -->
+    <section class="page" id="p-bluetooth">
+      <div class="head"><div><h1>Bluetooth</h1><p>Gekoppelte Kopfhörer und Lautsprecher verbinden oder trennen – hier oder am Dashboard im Menü „Bluetooth“.</p></div></div>
+      <div id="btWarn" class="notice"></div>
+      <div class="card list" id="btList"></div>
+      <p class="dim mt" style="font-size:12.5px;max-width:74ch">Neue Geräte koppelst du wie gewohnt in den Windows-Einstellungen. Der Akkustand erscheint, sobald ein Gerät verbunden ist und ihn an Windows meldet – das können nicht alle.</p>
+    </section>
+
     <!-- Dashboard -->
     <section class="page" id="p-device">
-      <div class="head"><div><h1>Dashboard</h1><p>Anzeige, Verdrahtung und Firmware</p></div></div>
+      <div class="head"><div><h1>Dashboard</h1><p>Anzeige, Verdrahtung und Firmware deines Geräts.</p></div></div>
       <div class="card">
-        <h3>Anzeige</h3><p class="sub">Änderungen werden sofort übernommen</p>
-        <div class="row"><div class="lbl"><b>Helligkeit</b><small>Helligkeit des OLED-Displays</small></div><span class="muted" id="brV" style="width:44px;text-align:right"></span><input type="range" id="br" min="5" max="100" step="5"></div>
-        <div class="row"><div class="lbl"><b>Bildschirmschoner</b><small>Zeigt ein gedimmtes, wanderndes Logo, wenn nichts passiert – schützt vor Einbrennen</small></div><div class="sel"><select id="saver"><option value="0">Aus</option><option value="60">Nach 1 Minute</option><option value="300">Nach 5 Minuten</option><option value="600">Nach 10 Minuten</option><option value="1800">Nach 30 Minuten</option><option value="3600">Nach 1 Stunde</option></select></div></div>
-        <div class="row"><div class="lbl"><b>Lautstärke-Anzeige</b><small>Beim Bewegen eines Faders kurz Name und Prozent einblenden</small></div><label class="tg"><input type="checkbox" id="ov"><span></span></label></div>
-        <div class="row"><div class="lbl"><b>Langer Druck auf den Drehgeber</b><small>Schaltet stumm bzw. wieder ein – das Display zeigt es oben rechts an</small></div><div class="sel"><select id="muteT"></select></div></div>
+        <h3>Anzeige</h3><p class="sub">Änderungen gelten sofort.</p>
+        <div class="row"><div class="lbl"><b>Helligkeit</b><small>Helligkeit des OLED-Displays</small></div><span class="muted num" id="brV" style="width:48px;text-align:right"></span><input type="range" id="br" min="5" max="100" step="5" aria-label="Helligkeit"></div>
+        <div class="row"><div class="lbl"><b>Bildschirmschoner</b><small>Zeigt ein gedimmtes, wanderndes Logo, wenn nichts passiert – das schützt vor Einbrennen.</small></div><div class="sel"><select id="saver"><option value="0">Aus</option><option value="60">Nach 1 Minute</option><option value="300">Nach 5 Minuten</option><option value="600">Nach 10 Minuten</option><option value="1800">Nach 30 Minuten</option><option value="3600">Nach 1 Stunde</option></select></div></div>
+        <div class="row"><div class="lbl"><b>Lautstärke-Anzeige</b><small>Blendet beim Bewegen eines Faders kurz Name und Prozent ein.</small></div><label class="tg"><input type="checkbox" id="ov"><span></span></label></div>
+        <div class="row"><div class="lbl"><b>Langer Druck auf den Drehgeber</b><small>Schaltet stumm und wieder ein. Das Display zeigt es oben rechts.</small></div><div class="sel"><select id="muteT"></select></div></div>
         <div class="row"><div class="lbl"><b>Start-Animation</b><small>Logo beim Einschalten des Dashboards</small></div><label class="tg"><input type="checkbox" id="anim"><span></span></label></div>
       </div>
 
@@ -286,12 +391,12 @@ kbd{background:#222838;border:1px solid var(--line2);border-bottom-width:2px;bor
         <div class="pins" id="pins"></div>
         <div class="grid g2 mt">
           <div>
-            <div class="muted" style="font-size:12px;font-weight:550;margin-bottom:8px">Encoder-Empfindlichkeit</div>
+            <div class="muted" style="font-size:12.5px;margin-bottom:8px">Encoder-Empfindlichkeit</div>
             <div class="seg" id="encDiv"><button data-v="4">Normal</button><button data-v="2">Hoch</button><button data-v="1">Sehr hoch</button></div>
-            <div class="dim" style="font-size:12px;margin-top:8px">Springt der Cursor nur bei jeder zweiten Raste? Dann „Hoch“ wählen.</div>
+            <div class="dim" style="font-size:12.5px;margin-top:8px">Springt der Cursor nur bei jeder zweiten Raste? Dann „Hoch“ wählen.</div>
           </div>
           <div>
-            <div class="muted" style="font-size:12px;font-weight:550;margin-bottom:8px">Richtung umkehren</div>
+            <div class="muted" style="font-size:12.5px;margin-bottom:8px">Richtung umkehren</div>
             <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap" id="invs"></div>
           </div>
         </div>
@@ -300,37 +405,37 @@ kbd{background:#222838;border:1px solid var(--line2);border-bottom-width:2px;bor
       </div>
 
       <div class="card mt">
-        <h3>Firmware</h3><p class="sub">Die Software auf dem Pico wird von der App verwaltet – du musst keine Dateien kopieren</p>
+        <h3>Firmware</h3><p class="sub">Die Software auf dem Pico verwaltet die App. Du musst keine Dateien kopieren.</p>
         <div id="fwBox"></div>
-        <div class="row"><div class="lbl"><b>Automatisch aktualisieren</b><small>Neue Firmware beim Verbinden automatisch aufspielen</small></div><label class="tg"><input type="checkbox" id="autoFw"><span></span></label></div>
+        <div class="row"><div class="lbl"><b>Automatisch aktualisieren</b><small>Spielt neue Firmware beim Verbinden von selbst auf.</small></div><label class="tg"><input type="checkbox" id="autoFw"><span></span></label></div>
       </div>
     </section>
 
     <!-- Updates -->
     <section class="page" id="p-updates">
-      <div class="head"><div><h1>Updates</h1><p>MakerDash und die Dashboard-Firmware aktuell halten</p></div><button class="btn" id="chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></svg>Nach Updates suchen</button></div>
+      <div class="head"><div><h1>Updates</h1><p>Hält MakerDash und die Firmware des Dashboards aktuell.</p></div><button class="btn" id="chk">Nach Updates suchen</button></div>
       <div class="card" id="updCard"></div>
       <div class="card mt">
-        <div class="row"><div class="lbl"><b>Automatisch nach Updates suchen</b><small>Beim Start und alle 6 Stunden – du wirst benachrichtigt, installiert wird erst nach deiner Bestätigung</small></div><label class="tg"><input type="checkbox" id="autoUpd"><span></span></label></div>
+        <div class="row"><div class="lbl"><b>Automatisch nach Updates suchen</b><small>Beim Start und alle 6 Stunden. Installiert wird erst, wenn du es bestätigst.</small></div><label class="tg"><input type="checkbox" id="autoUpd"><span></span></label></div>
         <div class="row"><div class="lbl"><b>Update-Quelle</b><small>GitHub-Repository mit den Veröffentlichungen</small></div><input class="inp" id="repo" style="width:260px" placeholder="benutzer/repository"></div>
       </div>
     </section>
 
     <!-- Einstellungen -->
     <section class="page" id="p-settings">
-      <div class="head"><div><h1>Einstellungen</h1><p>Allgemeines und Fehlersuche</p></div></div>
+      <div class="head"><div><h1>Einstellungen</h1><p>Allgemeines und Fehlersuche.</p></div></div>
       <div class="card">
         <h3>Allgemein</h3>
-        <div class="row"><div class="lbl"><b>Mit Windows starten</b><small>MakerDash läuft unauffällig im Infobereich</small></div><label class="tg"><input type="checkbox" id="auto"><span></span></label></div>
-        <div class="row"><div class="lbl"><b>Verbindung</b><small>Normalerweise automatisch – nur ändern, wenn das Dashboard nicht gefunden wird</small></div><input class="inp" id="port" style="width:160px" placeholder="Automatisch"></div>
+        <div class="row"><div class="lbl"><b>Mit Windows starten</b><small>MakerDash läuft unauffällig im Infobereich.</small></div><label class="tg"><input type="checkbox" id="auto"><span></span></label></div>
+        <div class="row"><div class="lbl"><b>Verbindung</b><small>Normalerweise automatisch. Nur ändern, wenn das Dashboard nicht gefunden wird.</small></div><input class="inp" id="port" style="width:160px" placeholder="Automatisch"></div>
       </div>
       <div class="card mt">
         <h3>Hilfe</h3>
-        <div class="row"><div class="lbl"><b>Einrichtung erneut starten</b><small>Führt noch einmal durch Anschließen und Test der Fader</small></div><button class="btn small" id="reSetup">Starten</button></div>
-        <div class="row"><div class="lbl"><b>Protokolle</b><small>Log-Datei und Einstellungen im Explorer öffnen</small></div><button class="btn small" id="logs">Ordner öffnen</button></div>
-        <div class="row"><div class="lbl"><b>MakerDash beenden</b><small>Das Dashboard steuert danach nichts mehr</small></div><button class="btn small" id="quit">Beenden</button></div>
+        <div class="row"><div class="lbl"><b>Einrichtung erneut starten</b><small>Führt noch einmal durch Anschließen und Test der Fader.</small></div><button class="btn small" id="reSetup">Einrichtung starten</button></div>
+        <div class="row"><div class="lbl"><b>Protokolle</b><small>Öffnet den Ordner mit Log-Datei und Einstellungen im Explorer.</small></div><button class="btn small" id="logs">Ordner öffnen</button></div>
+        <div class="row"><div class="lbl"><b>MakerDash beenden</b><small>Das Dashboard steuert danach nichts mehr, bis du die App wieder startest.</small></div><button class="btn small" id="quit">Beenden</button></div>
       </div>
-      <p class="dim mt" id="about" style="font-size:12px"></p>
+      <p class="dim mt" id="about" style="font-size:12.5px"></p>
     </section>
   </main>
 </div>
@@ -375,8 +480,9 @@ let wizStep = -1;
 
 // ---------- Hilfen ----------
 const pct = v => v < 0 ? "–" : Math.round(v / 10);
-const hueOf = s => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
-const avatar = (name) => { const h = hueOf(name); return `<div class="av" style="background:linear-gradient(135deg,hsl(${h} 70% 55%),hsl(${(h+40)%360} 75% 45%))">${esc((name||"?").trim().charAt(0).toUpperCase())}</div>`; };
+// Pegelanzeigen bestehen aus 6 px breiten Segmenten – auf ganze Segmente runden
+const meterW = p => Math.max(0, Math.min(100, p));
+const avatar = (name) => `<div class="av">${esc((name||"?").trim().charAt(0).toUpperCase())}</div>`;
 const toggle = (attrs, on) => `<label class="tg"><input type="checkbox" ${attrs} ${on ? "checked" : ""}><span></span></label>`;
 const selectHTML = (opts, val) => opts.map(([v, t]) => `<option value="${esc(v)}" ${v === val ? "selected" : ""}>${esc(t)}</option>`).join("");
 
@@ -430,44 +536,40 @@ function deviceArt() {
   const f3 = S ? S.f3 : "-";
   const od = S ? (S.outputs.find(o => o.isDefault) || {}) : {};
   const out = od.alias || od.name || "";
+  const mixOn = S && S.mix && S.mix.enabled && S.mix.source && S.mix.cable;
   const lv = i => LV[i] < 0 ? 500 : LV[i];
-  const font = 'font-family="Segoe UI Variable Text,Segoe UI,Arial,sans-serif"';
-  const screw = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#0f1219" stroke="#3a4254" stroke-width="1"/><path d="M${x-r*.55} ${y}h${r*1.1}M${x} ${y-r*.55}v${r*1.1}" stroke="#4a5367" stroke-width="1.2" stroke-linecap="round"/>`;
+  const font = 'font-family="Bahnschrift,Segoe UI,Arial,sans-serif"';
+  const screw = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#141517" stroke="#3b3e45" stroke-width="1"/><path d="M${x-r*.55} ${y}h${r*1.1}" stroke="#55585f" stroke-width="1.1" stroke-linecap="round"/>`;
   const trunc = (t, n) => t.length > n ? t.slice(0, n - 1) + "…" : t;
   const fader = (i) => {
     const x = PANEL.faderX[i], ky = knobY(lv(i)), h = PANEL.slotBot - 6 - ky;
     return `${screw(x, 170.5, 4.2)}${screw(x, 371.9, 4.2)}
-    <rect x="${x-4}" y="${PANEL.slotTop}" width="8" height="${SLOT_LEN}" rx="4" fill="#07090d" stroke="#2a3140"/>
-    <rect id="gl${i}" x="${x-1.6}" y="${ky}" width="3.2" height="${Math.max(0, h)}" rx="1.6" fill="url(#gl)" opacity="${on?1:.35}"/>
-    <g class="knob" id="kn${i}" style="transform:translateY(${ky}px)"><rect x="${x-17}" y="-10" width="34" height="20" rx="5" fill="url(#cap)" stroke="#c9cedb" stroke-width=".8"/><rect x="${x-12}" y="-1" width="24" height="2" rx="1" fill="#8a93a7"/></g>
-    <text x="${x}" y="394" fill="#6b7489" font-size="11" text-anchor="middle" ${font}>F${i+1}</text>`;
+    <rect x="${x-4}" y="${PANEL.slotTop}" width="8" height="${SLOT_LEN}" rx="4" fill="#0c0d0e" stroke="#33353b"/>
+    <rect id="gl${i}" x="${x-1.5}" y="${ky}" width="3" height="${Math.max(0, h)}" rx="1.5" fill="${on ? "#e8a23a" : "#55585f"}"/>
+    <g class="knob" id="kn${i}" style="transform:translateY(${ky}px)"><rect x="${x-17}" y="-10" width="34" height="20" rx="3" fill="#ecebe6" stroke="#fff" stroke-width=".6"/><rect x="${x-12}" y="-.8" width="24" height="1.6" fill="#17181b"/></g>
+    <text x="${x}" y="394" fill="#6f6e69" font-size="12" font-weight="600" text-anchor="middle" ${font}>${i+1}</text>`;
   };
   // OLED: Fensterausschnitt 70×48, darin die aktive Fläche im Format 2:1
   const ox = 109.8, oy = 91.2, ow = 64, oh = 32;
-  const screen = on ? `<text x="${ox+2}" y="${oy+6.5}" fill="#d8dce6" font-size="5.2" font-family="Consolas,monospace">Fader 3</text>
+  const screen = on ? `<text x="${ox+2}" y="${oy+6.5}" fill="#d9d7d0" font-size="5.2" font-family="Consolas,monospace">Fader 3</text>
     <text x="${ox+2}" y="${oy+18}" fill="#fff" font-size="9.5" font-weight="700" ${font}>${esc(trunc(f3, 11))}</text>
-    <rect x="${ox+2}" y="${oy+22}" width="${ow-4}" height=".6" fill="#fff" opacity=".8"/>
-    <text x="${ox+2}" y="${oy+29.5}" fill="#fff" font-size="5.6" ${font}>🔈 ${esc(trunc(out, 18))}</text>`
-    : `<text x="${ox+ow/2}" y="${oy+oh/2+2}" fill="#39414f" font-size="5.5" text-anchor="middle" ${font}>nicht verbunden</text>`;
-  return `<svg class="devsvg" viewBox="-6 -6 296 519" xmlns="http://www.w3.org/2000/svg">
-  <defs><linearGradient id="body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#252b39"/><stop offset="1" stop-color="#171b25"/></linearGradient>
-  <linearGradient id="gl" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
-  <linearGradient id="cap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dfe3ec"/></linearGradient>
-  <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
-  <radialGradient id="encg" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#2b3142"/><stop offset="1" stop-color="#141821"/></radialGradient></defs>
-  <rect x="0" y="0" width="${PANEL.w}" height="${PANEL.h}" rx="18" fill="url(#body)" stroke="#303849"/>
-  <rect x="40" y="0" width="${PANEL.w-80}" height="2.5" rx="1.2" fill="url(#edge)" opacity="${on?.9:.25}"/>
+    <rect x="${ox+2}" y="${oy+22}" width="${ow-4}" height=".6" fill="#fff" opacity=".85"/>
+    <text x="${ox+2}" y="${oy+29.5}" fill="#fff" font-size="5.6" ${font}>${esc(trunc(out, mixOn ? 13 : 18))}</text>
+    ${mixOn ? `<rect x="${ox+ow-14}" y="${oy+24.5}" width="12" height="6" fill="#fff"/><text x="${ox+ow-8}" y="${oy+29.3}" fill="#000" font-size="4.6" font-weight="700" text-anchor="middle" font-family="Consolas,monospace">MIX</text>` : ""}`
+    : `<text x="${ox+ow/2}" y="${oy+oh/2+2}" fill="#4a4c52" font-size="5.5" text-anchor="middle" ${font}>nicht verbunden</text>`;
+  return `<svg class="devsvg" viewBox="-2 -2 288 511" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dein Dashboard mit den aktuellen Fader-Stellungen">
+  <rect x="0" y="0" width="${PANEL.w}" height="${PANEL.h}" rx="14" fill="#202226" stroke="#3b3e45"/>
   ${screw(35.5, 45.9, 7.5)}${screw(248.1, 45.9, 7.5)}${screw(35.5, 485.2, 7.5)}${screw(248.1, 485.2, 7.5)}
-  <rect x="100" y="70" width="83.6" height="76.4" rx="4" fill="#0b0e14" stroke="#2b3242"/>
+  <rect x="100" y="70" width="83.6" height="76.4" rx="3" fill="#141517" stroke="#33353b"/>
   ${screw(110.7, 77, 2.6)}${screw(173, 77, 2.6)}${screw(110.7, 139.4, 2.6)}${screw(173, 139.4, 2.6)}
-  <rect x="106.6" y="84.3" width="70.4" height="47.9" rx="2" fill="#05070b" stroke="#343c4d"/>
+  <rect x="106.6" y="84.3" width="70.4" height="47.9" rx="1.5" fill="#08090a" stroke="#3b3e45"/>
   <rect x="${ox}" y="${oy}" width="${ow}" height="${oh}" fill="#000"/>
   ${screen}
   ${[0,1,2].map(fader).join("")}
-  <circle cx="${PANEL.enc[0]}" cy="${PANEL.enc[1]}" r="25" fill="#0d1017" stroke="#343c4d"/>
-  <circle cx="${PANEL.enc[0]}" cy="${PANEL.enc[1]}" r="19" fill="url(#encg)" stroke="#3a4254"/>
-  <rect x="${PANEL.enc[0]-1.5}" y="${PANEL.enc[1]-17}" width="3" height="9" rx="1.5" fill="#8b93a7"/>
-  <text x="${PANEL.w/2}" y="${PANEL.h-14}" fill="#4a5367" font-size="10" font-weight="600" letter-spacing="2" text-anchor="middle" ${font}>MAKERDASH</text>
+  <circle cx="${PANEL.enc[0]}" cy="${PANEL.enc[1]}" r="25" fill="#141517" stroke="#3b3e45"/>
+  <circle cx="${PANEL.enc[0]}" cy="${PANEL.enc[1]}" r="19" fill="#2a2c31" stroke="#4a4d55"/>
+  <rect x="${PANEL.enc[0]-1.2}" y="${PANEL.enc[1]-17}" width="2.4" height="9" rx="1.2" fill="#ecebe6"/>
+  <text x="${PANEL.w/2}" y="${PANEL.h-13}" fill="#55585f" font-size="10.500" font-weight="600" letter-spacing="1.5" text-anchor="middle" ${font}>MakerDash</text>
   </svg>`;
 }
 function updateKnobs() {
@@ -476,6 +578,7 @@ function updateKnobs() {
     const k = document.getElementById("kn" + i); if (k) k.style.transform = `translateY(${ky}px)`;
     const g = document.getElementById("gl" + i); if (g) { g.setAttribute("y", ky); g.setAttribute("height", Math.max(0, PANEL.slotBot - 6 - ky)); }
     const p = document.getElementById("fp" + i); if (p) p.innerHTML = pct(LV[i]) + (LV[i] < 0 ? "" : "<small>%</small>");
+    const m = document.getElementById("fm" + i); if (m) m.style.width = meterW(LV[i] < 0 ? 0 : LV[i] / 10) + "%";
     const b = document.getElementById("fb" + i); if (b) b.style.width = (LV[i] < 0 ? 0 : LV[i] / 10) + "%";
     const w = document.getElementById("wf" + i); if (w) { w.style.width = (LV[i] < 0 ? 0 : LV[i] / 10) + "%"; }
   }
@@ -488,8 +591,8 @@ function fwBadge() {
   if (!S.conn.connected && f.state !== "updating" && f.state !== "restarting") return `<span class="badge"><i class="d"></i>Nicht verbunden</span>`;
   switch (f.state) {
     case "ok": return `<span class="badge ok"><i class="d"></i>Verbunden</span>`;
-    case "updating": return `<span class="badge acc"><span class="spin" style="width:10px;height:10px"></span>Firmware-Update ${f.progress}%</span>`;
-    case "restarting": return `<span class="badge acc"><span class="spin" style="width:10px;height:10px"></span>Startet neu …</span>`;
+    case "updating": return `<span class="badge acc"><span class="spin" style="width:11px;height:11px"></span>Firmware-Update ${f.progress} %</span>`;
+    case "restarting": return `<span class="badge acc"><span class="spin" style="width:11px;height:11px"></span>Startet neu …</span>`;
     case "outdated": return `<span class="badge warn"><i class="d"></i>Firmware veraltet</span>`;
     case "error": return `<span class="badge err"><i class="d"></i>Problem</span>`;
   }
@@ -497,12 +600,12 @@ function fwBadge() {
 }
 // ---------- Fader-Ziele ----------
 // Fader 1/2 speichern "app:<exe>", Fader 3 (historisch) nur "<exe>"; Gruppen "group:<id>", "focus" = aktives Fenster
-const f3AsTarget = v => !v ? "none" : (v === "focus" || v.startsWith("group:")) ? v : "app:" + v;
+const f3AsTarget = v => !v ? "none" : (v === "focus" || v === "mix" || v.startsWith("group:")) ? v : "app:" + v;
 function targetKind(t) {
   if (!t) return "";
-  if (t.startsWith("group:")) return "Gruppe";
-  if (t.startsWith("app:")) return "Programm";
-  if (t === "focus") return "Aktives Fenster";
+  if (t === "focus") return "folgt dem Fenster im Vordergrund";
+  if (t === "mix") return S.mix.sourceLabel ? `Lautstärke von ${S.mix.sourceLabel} im Mikro-Mix` : "Lautstärke des Programms im Mikro-Mix";
+  if (t.startsWith("group:")) { const g = S.groups.find(x => "group:" + x.id === t); return g ? `Gruppe · ${g.apps.length} Programm${g.apps.length === 1 ? "" : "e"}` : "Gruppe"; }
   return "";
 }
 function targetSelect(val, f3) {
@@ -510,7 +613,7 @@ function targetSelect(val, f3) {
   const cur = f3 ? f3AsTarget(val) : val;
   const opt = (v, t) => `<option value="${esc(v)}" ${v === val ? "selected" : ""}>${esc(t)}</option>`;
   let h = f3 ? (val ? "" : opt("", "– Ziel wählen –")) : opt("master", "Systemlautstärke") + opt("mic", "Mikrofon");
-  h += opt("focus", "Aktives Fenster");
+  h += opt("focus", "Aktives Fenster") + opt("mix", "Mikro-Mix");
   if (S.groups.length) h += `<optgroup label="Gruppen">${S.groups.map(g => opt("group:" + g.id, g.name)).join("")}</optgroup>`;
   const apps = S.apps.filter(a => a.active || "app:" + a.key === cur);
   if (cur.startsWith("app:") && !apps.some(a => "app:" + a.key === cur)) apps.unshift({key: cur.slice(4), name: f3 ? S.f3 : cur.slice(4)});
@@ -521,39 +624,43 @@ function targetSelect(val, f3) {
 
 function renderOverview() {
   patch($("#devArt"), deviceArt());
-  const c = S.conn;
+  const c = S.conn, newPico = S.drives.bootsel || S.drives.circuitpy;
   $("#heroBadge").innerHTML = fwBadge();
-  $("#heroTitle").textContent = c.connected ? "Dashboard ist bereit" : (S.drives.bootsel || S.drives.circuitpy ? "Neuer Pico gefunden" : "Dashboard nicht verbunden");
-  $("#heroSub").textContent = c.connected ? "Alle Regler sind mit Windows verbunden." : (S.drives.bootsel || S.drives.circuitpy ? "Er kann jetzt eingerichtet werden." : "Schließe dein Dashboard per USB an – es wird automatisch erkannt.");
-  const out = S.outputs.find(o => o.isDefault), mic = S.inputs.find(o => o.isDefault);
-  const kv = [];
-  if (c.connected) kv.push(["Anschluss", c.port], ["Firmware", c.firmware + (S.firmware.state === "outdated" ? ` → ${S.firmware.bundled}` : "")]);
-  kv.push(["Ausgabe", out ? (out.alias || out.name) : "–"], ["Mikrofon", mic ? (mic.alias || mic.name) : "–"]);
-  kv.push(["Langer Druck", `${S.mute.label} · ${S.mute.on ? "stumm" : "an"}`]);
-  patch($("#heroKV"), kv.map(([k, v]) => `<span>${k}</span><div>${esc(v)}</div>`).join(""));
+  $("#heroSub").textContent = c.connected ? `Dein Dashboard ist über ${c.port} verbunden und läuft mit Firmware ${c.firmware}.`
+    : newPico ? "Ein neuer Pico wurde gefunden. Er kann jetzt eingerichtet werden." : "Schließe dein Dashboard per USB an. Es wird automatisch erkannt.";
   let act = "";
-  if (!c.connected && (S.drives.bootsel || S.drives.circuitpy)) act = `<button class="btn primary" data-act="wiz">Jetzt einrichten</button>`;
-  else if (S.firmware.state === "outdated") act = `<button class="btn primary" data-act="fw">Firmware aktualisieren</button>`;
+  if (!c.connected && newPico) act = `<div class="warnbox">${ICON.chip}<div>Neuer Pico gefunden. <button class="link" data-act="wiz">Jetzt einrichten</button></div></div>`;
+  else if (S.firmware.state === "outdated") act = `<div class="warnbox">${ICON.down}<div>Für dein Dashboard gibt es Firmware ${esc(S.firmware.bundled)}. <button class="link" data-act="fw">Firmware aktualisieren</button></div></div>`;
   else if (S.firmware.state === "error") act = `<div class="errbox">${ICON.alert}<div>${esc(S.firmware.message)}</div></div>`;
   patch($("#heroAct"), act);
 
-  const cards = [0, 1, 2].map(i => {
+  const rows = [0, 1, 2].map(i => {
     const val = i === 0 ? S.config.fader1 : i === 1 ? S.config.fader2 : S.f3Key;
-    const sel = i < 2 ? `<div class="sel"><select data-fader="${i+1}">${targetSelect(val, false)}</select></div>`
-                      : `<div class="sel"><select id="f3sel">${targetSelect(val, true)}</select></div>`;
+    const sel = i < 2 ? `<div class="sel"><select data-fader="${i+1}" aria-label="Ziel von Fader ${i+1}">${targetSelect(val, false)}</select></div>`
+                      : `<div class="sel"><select id="f3sel" aria-label="Ziel von Fader 3">${targetSelect(val, true)}</select></div>`;
     const kind = targetKind(i < 2 ? val : f3AsTarget(val));
-    return `<div class="card fader"><div class="top"><span class="num">Fader ${i+1}</span>${kind ? `<span class="badge acc">${kind}</span>` : ""}</div>${sel}
-      <div class="pct" id="fp${i}">${pct(LV[i])}${LV[i] < 0 ? "" : "<small>%</small>"}</div><div class="bar"><i id="fb${i}" style="width:${LV[i] < 0 ? 0 : LV[i]/10}%"></i></div></div>`;
+    const p = LV[i] < 0 ? 0 : LV[i] / 10;
+    return `<div class="ch"><span class="n">${i+1}</span>${sel}<div class="meter ${c.connected ? "" : "off"}"><i id="fm${i}" style="width:${meterW(p)}%"></i></div>
+      <div class="pct" id="fp${i}">${pct(LV[i])}${LV[i] < 0 ? "" : "<small>%</small>"}</div>${kind ? `<div class="kind">${esc(kind)}</div>` : ""}</div>`;
   });
-  patch($("#faders"), cards.join(""));
+  patch($("#faders"), rows.join(""));
 
+  const out = S.outputs.find(o => o.isDefault), mic = S.inputs.find(o => o.isDefault);
   const devOpts = list => list.filter(d => d.active).map(d => [d.key, d.alias || d.name]);
   const qo = $("#qOut"), qi = $("#qIn");
   const oh = selectHTML(devOpts(S.outputs), (out || {}).key), ih = selectHTML(devOpts(S.inputs), (mic || {}).key);
   if (document.activeElement !== qo && qo._h !== oh) { qo.innerHTML = oh; qo._h = oh; }
   if (document.activeElement !== qi && qi._h !== ih) { qi.innerHTML = ih; qi._h = ih; }
+
+  const m = S.mix, bt = S.bluetooth;
+  const mixTxt = !m.cable ? "Noch nicht eingerichtet" : !m.enabled ? "Aus" : m.source ? `${m.sourceLabel} und Mikrofon` : "Nur Mikrofon";
+  const btOn = bt.devices.filter(d => d.connected);
+  const btTxt = !bt.enabled || !bt.available ? "Nicht verfügbar" : btOn.length ? btOn.map(d => d.name + (d.battery >= 0 ? ` (${d.battery} %)` : "")).join(", ") : "Kein Gerät verbunden";
+  patch($("#heroKV"), `<div class="kvrow"><span>Mikro-Mix</span><div class="v">${esc(mixTxt)}</div><button class="link" data-go="mix">${m.cable ? "Ändern" : "Einrichten"}</button></div>
+    <div class="kvrow"><span>Bluetooth</span><div class="v">${esc(btTxt)}</div><button class="link" data-go="bluetooth">Geräte</button></div>
+    <div class="kvrow"><span>Langer Druck</span><div class="v">${esc(S.mute.label)} ${S.mute.on ? "ist stumm" : "ist an"}</div><button class="link" data-act="mute">${S.mute.on ? "Einschalten" : "Stummschalten"}</button></div>`);
 }
-$("#faders").dataset.patch = 1; $("#heroKV").dataset.patch = 1;
+$("#faders").dataset.patch = 1;
 $("#faders").addEventListener("change", e => {
   if (e.target.dataset.fader) send("setFaderTarget", {n: +e.target.dataset.fader, target: e.target.value});
   if (e.target.id === "f3sel" && e.target.value) { send("setFader3App", {key: e.target.value}); toast("info", "Fader 3 am Dashboard einmal ganz nach unten schieben"); }
@@ -567,18 +674,21 @@ document.addEventListener("click", e => {
   if (act === "fw") send("installFirmware");
   if (act === "upd") send("installUpdate");
   if (act === "url") send("openUrl", {value: a.dataset.url});
+  if (act === "mute") send("toggleMute");
+  if (act === "btRetry") send("btRetry");
 });
+document.addEventListener("click", e => { const a = e.target.closest("[data-go]"); if (a) go(a.dataset.go); });
 
 // ---------- Programme ----------
 function renderGroups() {
   const apps = S.apps.filter(a => !a.hidden || S.groups.some(g => g.apps.includes(a.key)));
   const html = S.groups.length ? S.groups.map(g => `<div class="grp" data-gid="${esc(g.id)}">
       <div class="gh"><input class="inp" data-gname value="${esc(g.name)}" maxlength="24" title="Name der Gruppe (so steht sie auf dem Display)">
-        <span class="muted">${g.apps.length ? `${g.apps.length} Programm${g.apps.length === 1 ? "" : "e"}${g.active ? " · spielt Ton ab" : ""}` : "Programme unten antippen, um sie hinzuzufügen"}</span>
+        <span class="muted">${g.apps.length ? `${g.apps.length} Programm${g.apps.length === 1 ? "" : "e"}${g.active ? ", spielt gerade Ton ab" : ""}` : "Programme anklicken, um sie hinzuzufügen"}</span>
         <button class="iconbtn" data-gdel title="Gruppe löschen">${ICON.trash}</button></div>
       <div class="chips">${apps.map(a => `<button class="chip ${g.apps.includes(a.key) ? "on" : ""}" data-app="${esc(a.key)}">${a.active ? "<i></i>" : ""}${esc(a.alias || a.name)}</button>`).join("") || '<span class="dim">Noch keine Programme bekannt – sobald ein Programm Ton abspielt, erscheint es hier.</span>'}</div>
     </div>`).join("")
-    : `<div class="dim" style="font-size:13px">Noch keine Gruppen. Eine Gruppe erscheint am Dashboard im Menü „Fader 3“ und lässt sich auch Fader 1 oder 2 zuweisen.</div>`;
+    : `<div class="dim" style="font-size:13px;border-top:1px solid var(--line);padding-top:14px">Noch keine Gruppen. Eine Gruppe erscheint am Dashboard im Menü „Fader 3“ und lässt sich jedem Fader zuweisen.</div>`;
   patch($("#groupList"), html);
 }
 $("#groupList").dataset.patch = 1;
@@ -605,12 +715,12 @@ function renderApps() {
   const list = S.apps.filter(a => !q || (a.alias + " " + a.name + " " + a.key).toLowerCase().includes(q));
   const html = list.length ? list.map(a => `<div class="item ${a.hidden ? "off" : ""}" data-key="${esc(a.key)}">
       ${avatar(a.alias || a.name)}
-      <div class="nm"><b>${esc(a.alias || a.name)}</b><small>${a.active ? '<i class="live"></i>spielt Ton ab' : "läuft nicht"} · ${esc(a.key)}</small></div>
+      <div class="nm"><b>${esc(a.alias || a.name)}</b><small>${a.active ? '<i class="live"></i>spielt Ton ab' : "läuft nicht"}<span class="dim">${esc(a.key)}</span></small></div>
       <input class="inp" data-alias value="${esc(a.alias)}" placeholder="${esc(a.name)}" maxlength="24" title="Anzeigename auf dem Display">
       ${toggle('data-show title="Im Menü anzeigen"', !a.hidden)}
       ${a.active ? "<span></span>" : `<button class="iconbtn" data-forget title="Aus der Liste entfernen">${ICON.trash}</button>`}
     </div>`).join("")
-    : `<div class="empty">${ICON.apps}<div>${q ? "Nichts gefunden" : "Noch keine Programme – sobald ein Programm Ton abspielt, erscheint es hier."}</div></div>`;
+    : `<div class="empty">${ICON.apps}<div>${q ? "Kein Programm passt zu dieser Suche." : "Noch keine Programme"}</div>${q ? "" : "<p>Sobald ein Programm Ton abspielt, erscheint es hier.</p>"}</div>`;
   patch($("#appList"), html);
 }
 $("#appList").dataset.patch = 1;
@@ -622,7 +732,7 @@ function renderDevices() {
   const list = devKind === "out" ? S.outputs : S.inputs;
   const html = list.length ? list.map(d => `<div class="item ${d.hidden ? "off" : ""} ${d.active ? "" : "off"}" data-key="${esc(d.key)}">
       ${avatar(d.alias || d.name)}
-      <div class="nm"><b>${esc(d.alias || d.name)} ${d.isDefault ? '<span class="badge ok" style="margin-left:6px">Standard</span>' : ""}</b><small>${esc(d.full || d.name)}${d.active ? "" : " · nicht angeschlossen"}</small></div>
+      <div class="nm"><b>${esc(d.alias || d.name)}</b><small>${d.isDefault ? '<span class="badge ok"><i class="d"></i>Standard</span>' : ""}<span>${esc(d.full || d.name)}${d.active ? "" : ", nicht angeschlossen"}</span></small></div>
       <div style="display:flex;gap:8px;align-items:center"><input class="inp" style="flex:1" data-alias value="${esc(d.alias)}" placeholder="${esc(d.name)}" maxlength="24" title="Anzeigename auf dem Display"></div>
       ${toggle('data-show title="Im Menü anzeigen"', !d.hidden)}
       ${d.active ? (d.isDefault ? "<span></span>" : `<button class="iconbtn" data-default title="Als Standard verwenden">${ICON.check}</button>`) : `<button class="iconbtn" data-forget title="Aus der Liste entfernen">${ICON.trash}</button>`}
@@ -647,6 +757,93 @@ function listEvents(el, kind) {
 }
 listEvents($("#appList"), "app");
 listEvents($("#devList"), "device");
+
+// ---------- Mikro-Mix ----------
+const setOptions = (el, html) => { if (document.activeElement !== el && el._h !== html) { el.innerHTML = html; el._h = html; } };
+const setRange = (el, out, v) => { if (document.activeElement !== el) el.value = v; el.style.setProperty("--p", el.value + "%"); out.textContent = el.value + " %"; };
+function renderMix() {
+  const m = S.mix, st = m.status || {state: "off"};
+  $("#mixOn").checked = m.enabled; $("#mixOn").disabled = !m.cable;
+  $("#mixOnT").textContent = m.enabled && m.cable ? "Eingeschaltet" : "Ausgeschaltet";
+
+  const warn = [];
+  if (!m.supported) warn.push(`<div class="warnbox">${ICON.alert}<div>Einzelne Programme lassen sich erst ab Windows 10 (Version 2004) aufnehmen. Auf diesem PC reicht der Mix nur dein Mikrofon durch.</div></div>`);
+  if (m.outIsCable) warn.push(`<div class="warnbox">${ICON.alert}<div>Windows gibt deinen Ton gerade auf das virtuelle Kabel aus – du hörst deshalb nichts. Wähle wieder deine Lautsprecher oder Kopfhörer als Ausgabe.<button class="link" data-go="devices">Audiogeräte öffnen</button></div></div>`);
+  if (st.state === "error") warn.push(`<div class="errbox">${ICON.alert}<div>${esc(st.error || "Der Mix konnte nicht gestartet werden.")} MakerDash versucht es weiter.</div></div>`);
+  if (m.enabled && st.state === "running" && !st.micOk) warn.push(`<div class="warnbox">${ICON.alert}<div>Das Mikrofon lässt sich gerade nicht öffnen. Wähle unten ein anderes oder prüfe, ob es angeschlossen ist.</div></div>`);
+  if (m.enabled && st.appError) warn.push(`<div class="warnbox">${ICON.alert}<div>${esc(m.sourceLabel || "Das Programm")} lässt sich nicht aufnehmen (${esc(st.appError)}). Läuft es mit Administratorrechten, muss auch MakerDash so gestartet werden.</div></div>`);
+  patch($("#mixWarn"), warn.join(""));
+
+  patch($("#mixSetup"), m.cable ? "" : `<div class="card"><h3>Einmalig einrichten: virtuelles Audiokabel</h3>
+    <p class="sub">Windows kann von sich aus keinen Programmton in ein Mikrofon leiten. Dafür braucht es ein virtuelles Kabel. MakerDash nutzt das kostenlose VB-CABLE und erkennt es nach der Installation von selbst.</p>
+    <ol class="steps">
+      <li><div><b>VB-CABLE herunterladen</b><small>Auf der Seite von VB-Audio den Download für Windows wählen.</small></div><button class="btn primary small" data-act="url" data-url="https://vb-audio.com/Cable/">Download-Seite öffnen</button></li>
+      <li><div><b>ZIP-Datei entpacken und installieren</b><small>Rechtsklick auf <span class="hl">VBCABLE_Setup_x64.exe</span>, „Als Administrator ausführen“, dann „Install Driver“.</small></div><span></span></li>
+      <li><div><b>PC neu starten</b><small>Danach erscheint hier der Mix. Hat Windows bei der Installation die Ausgabe auf „CABLE Input“ umgestellt, stelle sie unter Audiogeräte zurück.</small></div><span></span></li>
+    </ol></div>`);
+  $("#mixBody").hidden = !m.cable;
+  if (!m.cable) return;
+
+  setOptions($("#mixMic"), `<option value="" ${m.micId ? "" : "selected"}>Automatisch${m.micName && !m.micId ? " – " + esc(m.micName) : ""}</option>` +
+    m.mics.map(d => `<option value="${esc(d.key)}" ${d.key === m.micId ? "selected" : ""}>${esc(d.full || d.name)}</option>`).join(""));
+  const opt = (v, t) => `<option value="${esc(v)}" ${v === m.source ? "selected" : ""}>${esc(t)}</option>`;
+  let h = opt("", "Kein Programm – nur Mikrofon");
+  if (S.groups.length) h += `<optgroup label="Gruppen">${S.groups.map(g => opt("group:" + g.id, g.name)).join("")}</optgroup>`;
+  const apps = S.apps.filter(a => (a.active && !a.hidden) || a.key === m.source);
+  if (m.source && !m.source.startsWith("group:") && !apps.some(a => a.key === m.source)) apps.unshift({key: m.source, name: m.sourceLabel});
+  if (apps.length) h += `<optgroup label="Programme">${apps.map(a => opt(a.key, (a.alias || a.name) + (a.active === false ? " (läuft nicht)" : ""))).join("")}</optgroup>`;
+  setOptions($("#mixSrc"), h);
+  setRange($("#mixMicVol"), $("#mixMicV"), m.micVol);
+  setRange($("#mixAppVol"), $("#mixAppV"), m.appVol);
+
+  const live = m.enabled && st.state === "running";
+  $("#mixFlow").className = "flow " + (live ? "is-live" : m.enabled ? "" : "is-idle");
+  const rec = m.cableRec || "CABLE Output";
+  $("#mixRecName").textContent = rec.replace(/\s*\(.*\)$/, "");
+  const state = !m.enabled ? `<span class="badge"><i class="d"></i>Ausgeschaltet</span>`
+    : live ? `<span class="badge ok"><i class="d"></i>${m.source ? (st.capturing ? "Stimme und Programm" : "Wartet auf " + esc(m.sourceLabel)) : "Nur Stimme"}</span>`
+    : st.state === "error" ? `<span class="badge err"><i class="d"></i>Fehler</span>` : `<span class="badge acc"><span class="spin" style="width:11px;height:11px"></span>Startet …</span>`;
+  patch($("#mixDst"), `<small>Kommt an als Mikrofon</small><b>${esc(rec.replace(/\s*\(.*\)$/, ""))}</b><small>${esc((rec.match(/\((.*)\)$/) || ["", "Virtuelles Kabel"])[1])}</small><div style="margin-top:10px">${state}</div>`);
+}
+$("#mixOn").addEventListener("change", e => send("setMixEnabled", {on: e.target.checked}));
+$("#mixMic").addEventListener("change", e => send("setMixMic", {key: e.target.value}));
+$("#mixSrc").addEventListener("change", e => send("setMixSource", {key: e.target.value}));
+let mixVolTimer = {};
+for (const [id, out, kind] of [["#mixMicVol", "#mixMicV", "mic"], ["#mixAppVol", "#mixAppV", "app"]]) {
+  $(id).addEventListener("input", e => {
+    e.target.style.setProperty("--p", e.target.value + "%"); $(out).textContent = e.target.value + " %";
+    clearTimeout(mixVolTimer[kind]); mixVolTimer[kind] = setTimeout(() => send("setMixVol", {kind, n: +e.target.value}), 60);
+  });
+  $(id).addEventListener("change", e => e.target.blur());
+}
+// Pegel: Spitzenwert 0..1 -> Anzeige über 48 dB, mit weichem Rücklauf
+const MTR = {mic: 0, app: 0};
+function meters(mic, app) {
+  for (const [k, v, id] of [["mic", mic, "#mMic i"], ["app", app, "#mApp i"]]) {
+    const pos = v > 0 ? Math.max(0, Math.min(1, (20 * Math.log10(v) + 48) / 48)) : 0;
+    MTR[k] = Math.max(pos, MTR[k] - .06);
+    const el = $(id); if (el) el.style.width = (MTR[k] * 100).toFixed(1) + "%";
+  }
+}
+
+// ---------- Bluetooth ----------
+function renderBluetooth() {
+  const b = S.bluetooth;
+  let warn = "";
+  if (!b.enabled) warn = `<div class="warnbox">${ICON.alert}<div>Bluetooth ist für diesen Start ausgeschaltet, weil MakerDash dabei zuletzt abgestürzt ist.<button class="link" data-act="btRetry">Erneut versuchen</button></div></div>`;
+  else if (!b.available) warn = `<div class="warnbox">${ICON.alert}<div>Bluetooth ist an diesem PC ausgeschaltet oder es gibt keinen Adapter. Schalte es in den Windows-Einstellungen ein.</div></div>`;
+  patch($("#btWarn"), warn);
+  const html = b.devices.length ? b.devices.map(d => {
+    const status = d.busy === "connect" ? `<span class="spin" style="width:11px;height:11px"></span>Verbindet …` : d.busy === "disconnect" ? `<span class="spin" style="width:11px;height:11px"></span>Trennt …`
+      : d.connected ? `<span class="badge ok"><i class="d"></i>Verbunden</span>` : "Nicht verbunden";
+    const batt = d.connected && d.battery >= 0 ? `<div class="batt ${d.battery <= 15 ? "low" : ""}" title="Akkustand"><div class="cell"><i style="width:${Math.max(6, d.battery)}%"></i></div><span>${d.battery} %</span></div>` : `<span></span>`;
+    const btn = !d.canSwitch ? `<span class="dim" style="font-size:12.5px;text-align:right" title="Windows hat für dieses Gerät noch keine Audio-Verbindung angelegt. Verbinde es einmal über die Windows-Einstellungen.">nur über Windows</span>`
+      : `<button class="btn small ${d.connected ? "" : "primary"}" data-bt="${esc(d.id)}" data-on="${d.connected ? 0 : 1}" ${d.busy ? "disabled" : ""}>${d.connected ? "Trennen" : "Verbinden"}</button>`;
+    return `<div class="bt ${d.connected ? "" : "off"}">${avatar(d.name)}<div class="nm"><b>${esc(d.name)}</b><small>${status}</small></div>${batt}${btn}</div>`;
+  }).join("") : `<div class="empty">${ICON.info}<div>Keine gekoppelten Audiogeräte</div><p>Kopple Kopfhörer oder Lautsprecher einmal in den Windows-Einstellungen. Danach erscheinen sie hier und im Menü des Dashboards.</p></div>`;
+  patch($("#btList"), html);
+}
+$("#btList").addEventListener("click", e => { const b = e.target.closest("[data-bt]"); if (b) { b.disabled = true; send("btConnect", {key: b.dataset.bt, on: b.dataset.on === "1"}); } });
 
 // ---------- Dashboard ----------
 const PIN_FIELDS = [["fader1", "Fader 1", "adc"], ["fader2", "Fader 2", "adc"], ["fader3", "Fader 3", "adc"], ["encSW", "Encoder-Taster"],
@@ -686,11 +883,11 @@ function renderDeviceSettings() {
   const f = S.firmware, c = S.conn;
   let fw = `<div class="row"><div class="lbl"><b>Installiert</b><small>${c.connected ? "Version " + esc(c.firmware) : "Dashboard nicht verbunden"}</small></div>`;
   if (f.state === "updating" || f.state === "restarting") fw += `<div style="width:220px"><div class="bar ${f.state === "restarting" ? "indet" : ""}"><i style="width:${f.progress}%"></i></div><small class="muted">${esc(f.message)}</small></div>`;
-  else if (f.state === "outdated") fw += `<span class="badge warn">Update auf ${esc(f.bundled)}</span><button class="btn primary small" data-act="fw">Jetzt aktualisieren</button>`;
-  else if (c.connected && f.state === "ok") fw += `<span class="badge ok">Aktuell</span><button class="btn small" data-act="fw">Neu installieren</button>`;
+  else if (f.state === "outdated") fw += `<span class="badge warn"><i class="d"></i>Version ${esc(f.bundled)} verfügbar</span><button class="btn primary small" data-act="fw">Firmware aktualisieren</button>`;
+  else if (c.connected && f.state === "ok") fw += `<span class="badge ok"><i class="d"></i>Aktuell</span><button class="btn small" data-act="fw">Neu installieren</button>`;
   fw += `</div>`;
   if (f.state === "error" && f.message) fw += `<div class="errbox" style="margin:4px 0 8px">${ICON.alert}<div>${esc(f.message)}</div></div>`;
-  fw += `<div class="row"><div class="lbl"><b>In der App enthalten</b><small>Version ${esc(f.bundled)} · CircuitPython ${esc(S.cpVersion)} für neue Picos</small></div></div>`;
+  fw += `<div class="row"><div class="lbl"><b>In der App enthalten</b><small>Firmware ${esc(f.bundled)}, für neue Picos außerdem CircuitPython ${esc(S.cpVersion)}</small></div></div>`;
   patch($("#fwBox"), fw);
   $("#autoFw").checked = S.config.autoFirmware;
 }
@@ -722,14 +919,14 @@ function renderUpdates() {
     case "checking": icon = '<span class="spin" style="width:26px;height:26px;border-width:3px"></span>'; title = "Suche nach Updates …"; break;
     case "available": case "downloading": case "verifying": case "installing":
       icon = ICON.down; title = `Version ${esc(u.latest)} ist verfügbar`; sub = `Installiert: ${esc(u.current)}`;
-      if (u.state === "available") body = `<div style="display:flex;gap:10px;margin-top:16px"><button class="btn primary" data-act="upd">${ICON.down}Jetzt installieren</button>${u.url ? `<button class="btn ghost" data-act="url" data-url="${esc(u.url)}">Auf GitHub ansehen</button>` : ""}</div>`;
+      if (u.state === "available") body = `<div style="display:flex;gap:10px;margin-top:18px"><button class="btn primary" data-act="upd">Version ${esc(u.latest)} installieren</button>${u.url ? `<button class="btn ghost" data-act="url" data-url="${esc(u.url)}">Auf GitHub ansehen</button>` : ""}</div>`;
       else body = `<div class="mt" style="max-width:420px"><div class="bar ${u.state !== "downloading" ? "indet" : ""}"><i style="width:${u.progress}%"></i></div><small class="muted">${u.state === "downloading" ? `Wird heruntergeladen … ${u.progress}%` : u.state === "verifying" ? "Wird geprüft …" : "Installer wird gestartet – bitte die Windows-Abfrage bestätigen."}</small></div>`;
       if (u.error) body += `<div class="errbox mt">${ICON.alert}<div>${esc(u.error)}</div></div>`;
       if (u.notes) body += `<div class="notes">${mdLite(u.notes)}</div>`;
       break;
     case "error": icon = ICON.alert; title = "Update-Prüfung fehlgeschlagen"; sub = esc(u.error); break;
   }
-  if (u.lastCheck && u.state !== "checking") sub += ` · zuletzt geprüft ${esc(u.lastCheck)}`;
+  if (u.lastCheck && u.state !== "checking") sub += `, zuletzt geprüft am ${esc(u.lastCheck)}`;
   patch($("#updCard"), `<div class="upd"><div class="big">${icon}</div><div><h2>${title}</h2><div class="muted">${sub}</div></div></div>${body}`);
   $("#chk").disabled = u.state === "checking" || u.state === "disabled";
   $("#autoUpd").checked = S.config.autoUpdate;
@@ -743,7 +940,7 @@ $("#repo").addEventListener("change", e => send("setUpdateRepo", {value: e.targe
 function renderSettings() {
   $("#auto").checked = S.config.autostart;
   if (document.activeElement !== $("#port")) $("#port").value = S.config.port || "";
-  $("#about").textContent = `MakerDash ${S.app.version} · Firmware ${S.firmware.bundled} · CircuitPython ${S.cpVersion}`;
+  $("#about").textContent = `MakerDash ${S.app.version}, Firmware ${S.firmware.bundled}, CircuitPython ${S.cpVersion}`;
 }
 $("#auto").addEventListener("change", e => send("setAutostart", {on: e.target.checked}));
 $("#port").addEventListener("change", e => send("setPort", {value: e.target.value}));
@@ -766,7 +963,7 @@ function renderWizard() {
   let html = "", next = "Weiter", nextOk = true;
   if (wizStep === 0) {
     html = `<h2>Willkommen bei MakerDash</h2><p>In wenigen Schritten ist dein Dashboard einsatzbereit. Die App kümmert sich um alles – auch um die Software auf dem Pico. Du musst keine Dateien kopieren.</p>
-      <div class="wstate"><div class="ic" style="background:var(--grad)">${ICON.spark.replace('stroke="currentColor"','stroke="#fff"')}</div><div><b>Was passiert?</b><small>Dashboard anschließen · Software wird automatisch installiert · Fader testen</small></div></div>`;
+      <div class="wstate"><div class="ic">${ICON.usb}</div><div><b>Drei Schritte</b><small>Dashboard anschließen, Software automatisch installieren lassen, Fader testen.</small></div></div>`;
     next = "Los geht’s";
   } else if (wizStep === 1) {
     html = `<h2>Dashboard anschließen</h2><p>Verbinde den Pico per USB mit dem PC.</p>`;
@@ -780,15 +977,15 @@ function renderWizard() {
       html += `<div class="wstate"><span class="spin" style="width:28px;height:28px;border-width:3px;margin:8px"></span><div style="flex:1"><b>Firmware wird aktualisiert …</b><div class="bar ${f.state === "restarting" ? "indet" : ""}" style="margin-top:8px"><i style="width:${f.progress}%"></i></div></div></div>`;
       nextOk = false;
     } else if (c.connected) {
-      html += `<div class="wstate"><div class="ic" style="background:rgba(52,211,153,.15);color:var(--ok)">${ICON.check}</div><div><b>Dashboard gefunden</b><small>Verbunden über ${esc(c.port)} · Firmware ${esc(c.firmware)}</small></div></div>`;
+      html += `<div class="wstate"><div class="ic ok">${ICON.check}</div><div><b>Dashboard gefunden</b><small>Verbunden über ${esc(c.port)}, Firmware ${esc(c.firmware)}</small></div></div>`;
     } else if (!c.connected && ["restart"].includes(f.state)) {
       html += `<div class="wstate"><span class="spin" style="width:28px;height:28px;border-width:3px;margin:8px"></span><div><b>Dashboard startet neu …</b></div></div>`; nextOk = false;
     } else if (st.state === "error") {
       html += `<div class="errbox">${ICON.alert}<div>${esc(st.message)}</div></div><div class="mt"><button class="btn" onclick="send('setupReset')">Erneut versuchen</button></div>`; nextOk = false;
     } else if (dr.circuitpy) {
-      html += `<div class="wstate"><div class="ic" style="color:var(--accent2)">${ICON.chip}</div><div style="flex:1"><b>Pico mit CircuitPython gefunden</b><small>Laufwerk ${esc(dr.circuitpy)} – die Dashboard-Software fehlt noch</small></div><button class="btn primary" onclick="send('setupFirmware')">Installieren</button></div>`; nextOk = false;
+      html += `<div class="wstate"><div class="ic">${ICON.chip}</div><div style="flex:1"><b>Pico mit CircuitPython gefunden</b><small>Laufwerk ${esc(dr.circuitpy)} – die Dashboard-Software fehlt noch</small></div><button class="btn primary" onclick="send('setupFirmware')">Installieren</button></div>`; nextOk = false;
     } else if (dr.bootsel) {
-      html += `<div class="wstate"><div class="ic" style="color:var(--accent2)">${ICON.chip}</div><div style="flex:1"><b>Neuer Pico im Einrichtungsmodus</b><small>${esc(dr.board)} auf ${esc(dr.bootsel)} – CircuitPython ${esc(S.cpVersion)} wird heruntergeladen und aufgespielt</small></div><button class="btn primary" onclick="send('setupCircuitPython')">Einrichten</button></div>`; nextOk = false;
+      html += `<div class="wstate"><div class="ic">${ICON.chip}</div><div style="flex:1"><b>Neuer Pico im Einrichtungsmodus</b><small>${esc(dr.board)} auf ${esc(dr.bootsel)} – CircuitPython ${esc(S.cpVersion)} wird heruntergeladen und aufgespielt</small></div><button class="btn primary" onclick="send('setupCircuitPython')">Einrichten</button></div>`; nextOk = false;
     } else {
       html += `<div class="wstate"><div class="radar"><i></i></div><div><b>Suche Dashboard …</b><small>Wird automatisch erkannt, sobald es angeschlossen ist</small></div></div>
         <p style="margin-top:14px;font-size:13px">Neuer Pico ohne Software? <span class="hl">BOOTSEL-Taste</span> gedrückt halten, USB einstecken, loslassen – dann erscheint er hier.</p>`;
@@ -796,11 +993,11 @@ function renderWizard() {
     }
   } else if (wizStep === 2) {
     html = `<h2>Fader testen</h2><p>Schiebe jeden Fader einmal ganz nach oben und ganz nach unten. Bewegt sich der falsche Balken? Dann unter <span class="hl">Dashboard → Verdrahtung</span> die Pins tauschen.</p>
-      <div class="wf">${[0,1,2].map(i => `<div><b>Fader ${i+1}</b><div class="bar"><i id="wf${i}" style="width:${LV[i] < 0 ? 0 : LV[i]/10}%;transition:width .08s linear"></i></div></div>`).join("")}</div>`;
+      <div class="wf">${[0,1,2].map(i => `<div><b>Fader ${i+1}</b><div class="meter"><i id="wf${i}" style="width:${LV[i] < 0 ? 0 : LV[i]/10}%"></i></div></div>`).join("")}</div>`;
     next = "Weiter";
   } else if (wizStep === 3) {
-    html = `<h2>Fertig!</h2><p>Dein Dashboard ist eingerichtet. MakerDash läuft ab jetzt im Infobereich unten rechts – ein Klick auf das Symbol öffnet dieses Fenster.</p>
-      <div class="wstate"><div class="ic" style="color:var(--accent2)">${ICON.info}</div><div style="flex:1"><b>Mit Windows starten</b><small>Empfohlen, damit die Fader immer funktionieren</small></div>${toggle('id="wAuto"', S.config.autostart)}</div>`;
+    html = `<h2>Dein Dashboard ist eingerichtet</h2><p>MakerDash läuft ab jetzt im Infobereich unten rechts. Ein Klick auf das Symbol öffnet dieses Fenster.</p>
+      <div class="wstate"><div class="ic">${ICON.info}</div><div style="flex:1"><b>Mit Windows starten</b><small>Empfohlen, damit die Fader immer funktionieren</small></div>${toggle('id="wAuto"', S.config.autostart)}</div>`;
     next = "Fertig";
   }
   if ($("#wBody")._html !== html) { $("#wBody").innerHTML = html; $("#wBody")._html = html; const wa = $("#wAuto"); if (wa) wa.addEventListener("change", e => send("setAutostart", {on: e.target.checked})); }
@@ -828,10 +1025,13 @@ function render() {
   if (page === "overview") renderOverview();
   if (page === "apps") renderApps();
   if (page === "devices") renderDevices();
+  if (page === "mix") renderMix();
+  if (page === "bluetooth") renderBluetooth();
   if (page === "device") renderDeviceSettings();
   if (page === "updates") renderUpdates();
   if (page === "settings") renderSettings();
   $("#updDot").hidden = S.update.state !== "available";
+  $("#mixTag").hidden = !(S.mix.enabled && S.mix.cable);
   renderWizard();
 }
 
@@ -845,6 +1045,7 @@ window.__app = {
     render();
   },
   levels(v) { LV = v; updateKnobs(); },
+  meters,
   toast,
   go,
 };
@@ -854,9 +1055,9 @@ send("ready");
 // ---------- Vorschau ohne App (nur zum Entwickeln) ----------
 if (!hasBridge) {
   const demo = {
-    app: {version: "2.0.0", debug: true},
-    conn: {connected: true, port: "COM7", firmware: "2.0.0", proto: 2},
-    firmware: {state: "ok", progress: 0, message: "", bundled: "2.0.0"},
+    app: {version: "2.3.0", debug: true},
+    conn: {connected: true, port: "COM7", firmware: "2.3.0", proto: 2},
+    firmware: {state: "ok", progress: 0, message: "", bundled: "2.3.0"},
     setup: {state: "idle", progress: 0, message: ""},
     drives: {circuitpy: "E:\\", bootsel: "", board: ""}, cpVersion: "10.3.1",
     faders: [720, 450, 300], f3: "Spotify", f3Key: "spotify.exe",
@@ -870,13 +1071,22 @@ if (!hasBridge) {
     inputs: [{key: "i1", name: "Mikrofon", full: "Mikrofon (Shure MV7)", alias: "MV7", hidden: false, active: true, isDefault: true}, {key: "i2", name: "Headset-Mikrofon", full: "Headset-Mikrofon (Arctis Nova 7)", alias: "", hidden: false, active: true}],
     config: {fader1: "master", fader2: "group:g1", hardware: {fader1: "GP28", fader2: "GP27", fader3: "GP26", invert: "000", encA: "GP10", encB: "GP11", encSW: "GP12", encDivisor: 4, encReverse: false, sda: "GP4", scl: "GP5"},
              display: {brightness: 80, saver: 300, overlay: true, animation: true}, autostart: true, autoUpdate: true, autoFirmware: true, port: "", setupDone: true, updateRepo: ""},
-    update: {state: "available", current: "2.0.0", latest: "2.1.0", notes: "## Neu\n- **Mute** per Langdruck\n- Schnellere Verbindung\n\n## Behoben\n- Umlaute in Gerätenamen", progress: 0, error: "", lastCheck: "30.09.2026 13:05", repo: "JohannesJulius/makerdash", url: "https://github.com/JohannesJulius/makerdash/releases"},
+    mix: {enabled: true, source: "spotify.exe", sourceLabel: "Spotify", appVol: 70, micVol: 100, micId: "", micName: "Mikrofon (Shure MV7)",
+          mics: [{key: "i1", name: "Mikrofon", full: "Mikrofon (Shure MV7)"}, {key: "i2", name: "Headset-Mikrofon", full: "Headset-Mikrofon (Arctis Nova 7)"}],
+          cable: true, cablePlay: "CABLE Input (VB-Audio Virtual Cable)", cableRec: "CABLE Output (VB-Audio Virtual Cable)", cableRecId: "i9", outIsCable: false, inIsCable: false, supported: true,
+          status: {state: "running", micOk: true, capturing: 1}},
+    bluetooth: {enabled: true, available: true, devices: [
+      {id: "38184C1D2F2A", name: "WH-1000XM4", connected: true, battery: 80, canSwitch: true},
+      {id: "A0B1C2D3E4F5", name: "Soundcore Liberty 4 NC", connected: true, battery: 12, canSwitch: true},
+      {id: "0011223344AA", name: "JBL Flip 6", connected: false, battery: -1, canSwitch: true, busy: ""},
+      {id: "0011223344BB", name: "Marshall Stanmore III", connected: false, battery: -1, canSwitch: false}]},
+    update: {state: "available", current: "2.3.0", latest: "2.4.0", notes: "## Neu\n- **Mute** per Langdruck\n- Schnellere Verbindung\n\n## Behoben\n- Umlaute in Gerätenamen", progress: 0, error: "", lastCheck: "30.09.2026 13:05", repo: "JohannesJulius/makerdash", url: "https://github.com/JohannesJulius/makerdash/releases"},
     pins: Array.from({length: 23}, (_, i) => "GP" + i).concat(["GP26", "GP27", "GP28"]),
   };
   window.__demo = demo;
   window.__app.state(demo);
   window.__app.levels(demo.faders);
-  let t = 0; setInterval(() => { t += .05; window.__app.levels([720 + Math.sin(t) * 60 | 0, 450, 300 + Math.cos(t * .7) * 120 | 0]); }, 60);
+  let t = 0; setInterval(() => { t += .05; window.__app.levels([720 + Math.sin(t) * 60 | 0, 450, 300 + Math.cos(t * .7) * 120 | 0]); window.__app.meters(.12 + Math.abs(Math.sin(t * 3)) * .3, .2 + Math.abs(Math.cos(t * 2)) * .35); }, 60);
 }
 </script>
 </body>

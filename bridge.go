@@ -6,6 +6,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os/exec"
 	"sort"
@@ -18,6 +19,7 @@ var (
 	stateDirty  atomic.Bool
 	levelsDirt  atomic.Bool
 	lastLevels  string
+	metersShown bool
 )
 
 func markDirty()   { stateDirty.Store(true) }
@@ -44,6 +46,22 @@ func uiPump() {
 		if n%3 == 0 && stateDirty.Swap(false) {
 			if data, err := json.Marshal(buildState()); err == nil {
 				evalJS("window.__app&&window.__app.state(" + string(data) + ")")
+			}
+		}
+		if n%2 == 0 && mixer != nil {
+			// Pegel des Mikro-Mix (15×/s), solange er läuft – danach einmal auf null
+			if mixer.Status().State == "running" {
+				mic, app := mixer.Peaks()
+				evalJS(fmt.Sprintf("window.__app&&window.__app.meters&&window.__app.meters(%.3f,%.3f)", mic, app))
+				metersShown = true
+			} else if metersShown {
+				metersShown = false
+				evalJS("window.__app&&window.__app.meters&&window.__app.meters(0,0)")
+			}
+		}
+		if n%3 == 0 {
+			for _, t := range takeNotices() {
+				toast("info", t)
 			}
 		}
 		if levelsDirt.Swap(false) {
@@ -89,27 +107,27 @@ type uiState struct {
 		Firmware  string `json:"firmware"`
 		Proto     int    `json:"proto"`
 	} `json:"conn"`
-	Firmware  FirmwareState `json:"firmware"`
-	Setup     SetupState    `json:"setup"`
-	Drives    struct {
+	Firmware FirmwareState `json:"firmware"`
+	Setup    SetupState    `json:"setup"`
+	Drives   struct {
 		CircuitPy string `json:"circuitpy"`
 		Bootsel   string `json:"bootsel"`
 		Board     string `json:"board"`
 	} `json:"drives"`
-	CPVersion string      `json:"cpVersion"`
-	Faders    [3]int      `json:"faders"`
-	F3        string      `json:"f3"`
-	F3Key     string      `json:"f3Key"`
-	Apps      []uiItem    `json:"apps"`
-	Groups    []uiGroup   `json:"groups"`
+	CPVersion string    `json:"cpVersion"`
+	Faders    [3]int    `json:"faders"`
+	F3        string    `json:"f3"`
+	F3Key     string    `json:"f3Key"`
+	Apps      []uiItem  `json:"apps"`
+	Groups    []uiGroup `json:"groups"`
 	Mute      struct {
 		Target string `json:"target"`
 		Label  string `json:"label"`
 		On     bool   `json:"on"`
 	} `json:"mute"`
-	Outputs   []uiItem    `json:"outputs"`
-	Inputs    []uiItem    `json:"inputs"`
-	Config    struct {
+	Outputs []uiItem `json:"outputs"`
+	Inputs  []uiItem `json:"inputs"`
+	Config  struct {
 		Fader1       string   `json:"fader1"`
 		Fader2       string   `json:"fader2"`
 		Hardware     Hardware `json:"hardware"`
@@ -121,8 +139,35 @@ type uiState struct {
 		SetupDone    bool     `json:"setupDone"`
 		UpdateRepo   string   `json:"updateRepo"`
 	} `json:"config"`
-	Update UpdateState `json:"update"`
-	Pins   []string    `json:"pins"`
+	Update    UpdateState `json:"update"`
+	Pins      []string    `json:"pins"`
+	Mix       uiMix       `json:"mix"`
+	Bluetooth uiBT        `json:"bluetooth"`
+}
+
+type uiMix struct {
+	Enabled     bool      `json:"enabled"`
+	Source      string    `json:"source"` // exe, "group:<id>" oder ""
+	SourceLabel string    `json:"sourceLabel"`
+	AppVol      int       `json:"appVol"`
+	MicVol      int       `json:"micVol"`
+	MicID       string    `json:"micId"`   // eingestellt ("" = automatisch)
+	MicName     string    `json:"micName"` // tatsächlich benutzt
+	Mics        []uiItem  `json:"mics"`
+	Cable       bool      `json:"cable"` // VB-CABLE gefunden
+	CablePlay   string    `json:"cablePlay"`
+	CableRec    string    `json:"cableRec"`
+	CableRecID  string    `json:"cableRecId"`
+	OutIsCable  bool      `json:"outIsCable"` // Standard-Ausgabe zeigt aufs Kabel (dann hört man nichts mehr)
+	InIsCable   bool      `json:"inIsCable"`  // Standard-Mikrofon ist das Kabel
+	Supported   bool      `json:"supported"`  // Windows kann einzelne Programme aufnehmen
+	Status      MixStatus `json:"status"`
+}
+
+type uiBT struct {
+	Enabled   bool       `json:"enabled"` // false = nach einem Absturz für diesen Start ausgeschaltet
+	Available bool       `json:"available"`
+	Devices   []BTDevice `json:"devices"`
 }
 
 func buildState() uiState {
@@ -171,6 +216,8 @@ func buildState() uiState {
 			}
 			s.Groups = append(s.Groups, ug)
 		}
+		s.Mix.Enabled, s.Mix.Source, s.Mix.SourceLabel = c.Mix.Enabled, c.Mix.Source, mixSourceLabel(st, c)
+		s.Mix.AppVol, s.Mix.MicVol, s.Mix.MicID = c.Mix.AppVol, c.Mix.MicVol, c.Mix.MicID
 		s.F3Key = c.Fader3App
 		s.Config.Fader1, s.Config.Fader2 = c.Fader1, c.Fader2
 		s.Config.Hardware, s.Config.Display = c.Hardware, c.Display
@@ -216,6 +263,30 @@ func buildState() uiState {
 		s.Outputs = dev(st.Outputs, st.DefaultOut, "out")
 		s.Inputs = dev(st.Inputs, st.DefaultIn, "in")
 	}, false)
+	s.Mix.Mics = []uiItem{}
+	for _, d := range st.Inputs {
+		if !isCableName(d.Friendly) {
+			s.Mix.Mics = append(s.Mix.Mics, uiItem{Key: d.ID, Name: deviceBaseName(d, st.Inputs), Full: d.Friendly, Active: true})
+		}
+	}
+	if play, rec, ok := findCable(st); ok {
+		s.Mix.Cable, s.Mix.CablePlay, s.Mix.CableRec, s.Mix.CableRecID = true, play.Friendly, rec.Friendly, rec.ID
+		s.Mix.OutIsCable = st.DefaultOut == play.ID
+		s.Mix.InIsCable = rec.ID != "" && st.DefaultIn == rec.ID
+	}
+	if m, ok := pickMic(st, s.Mix.MicID); ok {
+		s.Mix.MicName = m.Friendly
+	}
+	b := windowsBuild()
+	s.Mix.Supported = b == 0 || b >= 19041
+	if mixer != nil {
+		s.Mix.Status = mixer.Status()
+	}
+	s.Bluetooth.Devices = []BTDevice{}
+	if bt != nil {
+		bs := bt.State()
+		s.Bluetooth.Enabled, s.Bluetooth.Available, s.Bluetooth.Devices = true, bs.Available, bs.Devices
+	}
 	s.Config.Autostart = autostartEnabled()
 	sort.SliceStable(s.Apps, func(i, j int) bool {
 		if s.Apps[i].Active != s.Apps[j].Active {
@@ -333,6 +404,7 @@ func handleCommand(m uiMsg) {
 				}
 			}
 		}, true)
+		updateMix()
 		pushToPico(false)
 		// Mitglieder sofort auf die Stellung der Fader bringen, die diese Gruppe regeln
 		faderMu.Lock()
@@ -354,6 +426,9 @@ func handleCommand(m uiMsg) {
 				}
 			}
 			ref := "group:" + m.Key
+			if c.Mix.Source == ref {
+				c.Mix.Source = ""
+			}
 			if c.Fader1 == ref {
 				c.Fader1 = "none"
 			}
@@ -367,9 +442,48 @@ func handleCommand(m uiMsg) {
 				c.MuteTarget = ""
 			}
 		}, true)
+		updateMix()
 		pushToPico(false)
 	case "setFader3App":
 		setFader3App(m.Key, true)
+	case "setMixEnabled":
+		withConfig(func(c *Config) { c.Mix.Enabled = m.On }, true)
+		updateMix()
+		pushToPico(false)
+	case "setMixSource":
+		ok := m.Key == ""
+		withConfig(func(c *Config) {
+			ok = ok || validTarget(c, m.Key, false) && strings.HasPrefix(m.Key, "group:") ||
+				!strings.Contains(m.Key, ":") && m.Key != "focus" && m.Key != "mix"
+		}, false)
+		if ok {
+			setMixSource(m.Key)
+		}
+	case "setMixVol":
+		v := m.N
+		if v < 0 {
+			v = 0
+		}
+		if v > 100 {
+			v = 100
+		}
+		withConfig(func(c *Config) {
+			if m.Kind == "mic" {
+				c.Mix.MicVol = v
+			} else {
+				c.Mix.AppVol = v
+			}
+		}, true)
+		updateMix()
+	case "setMixMic":
+		withConfig(func(c *Config) { c.Mix.MicID = m.Key }, true)
+		updateMix()
+	case "btConnect":
+		if bt != nil {
+			bt.SetConnected(m.Key, m.On)
+		}
+	case "btRetry":
+		startBluetooth()
 	case "setItem":
 		withConfig(func(c *Config) {
 			var ic *ItemCfg
@@ -480,7 +594,8 @@ func handleCommand(m uiMsg) {
 	case "openUrl":
 		u := m.Value
 		if strings.HasPrefix(u, "https://github.com/") || strings.HasPrefix(u, "https://circuitpython.org/") ||
-			strings.HasPrefix(u, "https://go.microsoft.com/") {
+			strings.HasPrefix(u, "https://go.microsoft.com/") || strings.HasPrefix(u, "https://vb-audio.com/") ||
+			u == "ms-settings:sound" {
 			exec.Command("rundll32", "url.dll,FileProtocolHandler", u).Start()
 		}
 	case "quit":

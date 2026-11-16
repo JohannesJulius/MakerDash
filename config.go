@@ -49,6 +49,15 @@ type Display struct {
 	Animation  bool `json:"animation"`
 }
 
+// MixCfg: Mikro-Mix – Ton eines Programms zusätzlich zum Mikrofon auf das virtuelle Kabel geben.
+type MixCfg struct {
+	Enabled bool   `json:"enabled,omitempty"`
+	Source  string `json:"source,omitempty"` // exe-Schlüssel oder "group:<id>"; "" = nur Mikrofon
+	AppVol  int    `json:"appVol"`           // 0..100
+	MicVol  int    `json:"micVol"`           // 0..100
+	MicID   string `json:"micId,omitempty"`  // "" = Standard-Mikrofon
+}
+
 type Config struct {
 	Version int `json:"version"`
 	// Fader-Ziele: "master", "mic", "none", "focus" (aktives Fenster), "app:<exe>", "group:<id>".
@@ -64,6 +73,7 @@ type Config struct {
 
 	Hardware Hardware `json:"hardware"`
 	Display  Display  `json:"display"`
+	Mix      MixCfg   `json:"mix"`
 
 	NoAutoUpdateCheck bool   `json:"noAutoUpdateCheck,omitempty"`
 	NoAutoFirmware    bool   `json:"noAutoFirmware,omitempty"`
@@ -99,6 +109,7 @@ func defaultConfig() *Config {
 		Devices:  map[string]*ItemCfg{},
 		Hardware: defaultHardware(),
 		Display:  defaultDisplay(),
+		Mix:      MixCfg{AppVol: 70, MicVol: 100},
 	}
 }
 

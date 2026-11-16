@@ -9,7 +9,7 @@ async def main():
         pg.on("pageerror", lambda e: errors.append(str(e)))
         pg.on("console", lambda m: errors.append("console:" + m.text) if m.type == "error" else None)
         await pg.goto(URL); await pg.wait_for_timeout(600)
-        for p_ in ["overview", "apps", "devices", "device", "updates", "settings"]:
+        for p_ in ["overview", "apps", "devices", "mix", "bluetooth", "device", "updates", "settings"]:
             await pg.evaluate(f"window.__app.go('{p_}')"); await pg.wait_for_timeout(400)
             await pg.screenshot(path=f"{p_}.png")
         # Einrichtung: Zustand "BOOTSEL gefunden"
@@ -19,8 +19,14 @@ async def main():
         await pg.wait_for_timeout(300); await pg.screenshot(path="wiz2.png")
         await pg.evaluate("wizStep=2;renderWizard()"); await pg.evaluate("window.__app.state(window.__demo)"); await pg.wait_for_timeout(500); await pg.screenshot(path="wiz3.png")
         await pg.evaluate("wizStep=0;renderWizard()"); await pg.wait_for_timeout(300); await pg.screenshot(path="wiz0.png")
-        await pg.evaluate("closeWizard(); toast('ok','Dashboard aktualisiert auf Version 2.0.0'); toast('error','Das Laufwerk CIRCUITPY wurde nicht gefunden.')"); await pg.wait_for_timeout(500)
-        await pg.evaluate("""()=>{const d=JSON.parse(JSON.stringify(window.__demo)); d.firmware={state:"updating",progress:55,message:"Dateien werden übertragen …",bundled:"2.0.0"}; window.__app.state(d); window.__app.go('device')}""")
+        # Mikro-Mix ohne virtuelles Kabel (Einrichtung) und Bluetooth ohne Geräte
+        await pg.evaluate("closeWizard()")
+        await pg.evaluate("""()=>{const d=JSON.parse(JSON.stringify(window.__demo)); d.mix.cable=false; d.mix.enabled=false; d.mix.status={state:"off"}; d.bluetooth.devices=[]; window.__app.state(d); window.__app.go('mix')}""")
+        await pg.wait_for_timeout(300); await pg.screenshot(path="mix_setup.png")
+        await pg.evaluate("window.__app.go('bluetooth')"); await pg.wait_for_timeout(300); await pg.screenshot(path="bluetooth_empty.png")
+        await pg.evaluate("window.__app.state(window.__demo)")
+        await pg.evaluate("closeWizard(); toast('ok','Dashboard aktualisiert auf Version 2.3.0'); toast('error','Das Laufwerk CIRCUITPY wurde nicht gefunden.')"); await pg.wait_for_timeout(500)
+        await pg.evaluate("""()=>{const d=JSON.parse(JSON.stringify(window.__demo)); d.firmware={state:"updating",progress:55,message:"Dateien werden übertragen …",bundled:"2.3.0"}; window.__app.state(d); window.__app.go('device')}""")
         await pg.wait_for_timeout(400); await pg.screenshot(path="fwupd.png")
         print("errors:", errors)
         await b.close()

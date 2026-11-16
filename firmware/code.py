@@ -3,7 +3,7 @@
 # Diese Datei wird von der App "MakerDash" installiert und aktualisiert.
 # Einstellungen (Pins usw.) stehen in settings.toml und werden in der App geändert.
 
-FW_VERSION = "2.2.0"
+FW_VERSION = "2.3.0"
 PROTO = 2
 BOOT_MARKER = "DASHBOOT 2"
 
@@ -193,6 +193,8 @@ ZEICHEN = "".join(chr(c) for c in range(32, 127)) + "äöüÄÖÜß°"
 
 PAL_WEISS = displayio.Palette(1)
 PAL_WEISS[0] = WEISS
+PAL_SCHWARZ = displayio.Palette(1)
+PAL_SCHWARZ[0] = SCHWARZ
 
 
 def helligkeit_setzen(wert):
@@ -279,8 +281,14 @@ lbl_name = text(FONT_GROSS, "", (0, 0.5), (0, 27))
 ico_ausgabe = icon(ICON_LAUTSPRECHER, 0, 51)
 lbl_ausgabe = text(FONT_MENU, "", (0, 0.5), (12, 55))
 lbl_hinweis = text(terminalio.FONT, "", (0.5, 0.5), (64, 55))
+# Marke "MIX" unten rechts, solange ein Programm mit ins Mikrofon läuft (deckt lange Gerätenamen ab)
+mix_marke = displayio.Group()
+mix_marke.append(vectorio.Rectangle(pixel_shader=PAL_SCHWARZ, width=28, height=16, x=100, y=47))
+mix_marke.append(rechteck(24, 11, 104, 50))
+mix_marke.append(text(terminalio.FONT, "MIX", (0.5, 0), (116, 50), farbe=SCHWARZ))
+mix_marke.hidden = True
 for teil in (lbl_titel, lbl_pc, mute_bg, lbl_mute, lbl_name, rechteck(128, 1, 0, 44),
-             ico_ausgabe, lbl_ausgabe, lbl_hinweis):
+             ico_ausgabe, lbl_ausgabe, mix_marke, lbl_hinweis):
     start.append(teil)
 
 # --- Menü (4 Zeilen, markierte Zeile invertiert) ---
@@ -426,7 +434,11 @@ f3_name = "-"
 namen = ["Fader 1", "Fader 2", "Fader 3"]
 gesperrt = False
 letzte_rx = -100.0
-modus = "START"         # START, HAUPT, PROG, AUSGABE, MIKRO
+mix_bereit = False          # virtuelles Kabel am PC vorhanden
+mix_quellen = []            # Programme, die mit ins Mikrofon können
+mix_idx = -1                # aktive Quelle, -1 = keine
+bt_geraete = []             # [Name, Zustand (0 getrennt, 1 verbunden, 2 beschäftigt), Akku oder -1]
+modus = "START"         # START, HAUPT, PROG, AUSGABE, MIKRO, MIX, BT
 cursor = 0
 scroll = 0
 jetzt = time.monotonic()
@@ -448,12 +460,16 @@ def pc_da():
     return ser is not None and ser.connected and time.monotonic() - letzte_rx < PC_TIMEOUT
 
 
+HAUPT_MENUE = ("PROG", "AUSGABE", "MIKRO", "MIX", "BT")     # Reihenfolge der Untermenüs
+
+
 def eintraege(m=None):
-    """Liste aus (Text, Pfeil, Wert)."""
+    """Liste aus (Text, Pfeil, Wert). Pfeil: True = ">", sonst Text für den rechten Rand."""
     modus_ = m or modus
     if modus_ == "HAUPT":
         return [("Zurück", False, None), ("Fader 3", True, None),
-                ("Ausgabe", True, None), ("Mikrofon", True, None)]
+                ("Ausgabe", True, None), ("Mikrofon", True, None),
+                ("Mikro-Mix", True, None), ("Bluetooth", True, None)]
     liste = [("Zurück", False, None)]
     if not pc_da():
         return liste + [("(kein PC)", False, None)]
@@ -470,7 +486,54 @@ def eintraege(m=None):
             liste.append(("(kein Mikrofon)", False, None))
         for i, n in enumerate(mikros):
             liste.append((("* " if i == mikro_idx else "  ") + n, False, n))
+    elif modus_ == "MIX":
+        if not mix_bereit:
+            return liste + [("(Kabel fehlt)", False, None), ("(siehe App)", False, None)]
+        liste.append((("* " if mix_idx < 0 else "  ") + "Aus", False, ""))
+        for i, n in enumerate(mix_quellen):
+            liste.append((("* " if i == mix_idx else "  ") + n, False, n))
+    elif modus_ == "BT":
+        if not bt_geraete:
+            liste.append(("(keine Geräte)", False, None))
+        for n, zustand, akku in bt_geraete:
+            if zustand == 2:
+                rechts = "..."
+            elif zustand == 1 and akku >= 0:
+                rechts = "%d%%" % akku
+            else:
+                rechts = ""
+            liste.append((("* " if zustand == 1 else "  ") + n, rechts, n))
     return liste
+
+
+_gekuerzt = {}
+
+
+def kuerzen(t, rechts):
+    """Kürzt t so, dass rechts daneben noch der Text am rechten Rand passt."""
+    if not rechts:
+        return t
+    schluessel = (t, rechts)
+    if schluessel in _gekuerzt:
+        return _gekuerzt[schluessel]
+
+    def breite(x):
+        b = 0
+        for c in x:
+            g = FONT_MENU.get_glyph(ord(c))
+            b += g.shift_x if g else 7
+        return b
+
+    platz = 126 - 3 - breite(rechts) - 5
+    kurz = t
+    while len(kurz) > 3 and breite(kurz) > platz:
+        kurz = kurz[:-1]
+    if kurz != t:
+        kurz = kurz[:-1].rstrip() + "."
+    if len(_gekuerzt) > 40:
+        _gekuerzt.clear()
+    _gekuerzt[schluessel] = kurz
+    return kurz
 
 
 def menue_zeichnen():
@@ -486,13 +549,15 @@ def menue_zeichnen():
         idx = scroll + zeile
         t, pfeil, _ = liste[idx] if idx < len(liste) else ("", False, None)
         farbe = SCHWARZ if idx == cursor else WEISS
+        p = ">" if pfeil is True else (pfeil or "")
+        if p and pfeil is not True:
+            t = kuerzen(t, p)
         # nur Geändertes anfassen – jede Änderung kostet Rechenzeit und Übertragung
         lbl, pf = menue_labels[zeile], menue_pfeile[zeile]
         if lbl.text != t:
             lbl.text = t
         if lbl.color != farbe:
             lbl.color = farbe
-        p = ">" if pfeil else ""
         if pf.text != p:
             pf.text = p
         if pf.color != farbe:
@@ -528,6 +593,7 @@ def start_zeichnen():
     aus = ausgaben[ausgabe_idx] if 0 <= ausgabe_idx < len(ausgaben) else "-"
     if lbl_ausgabe.text != aus:
         lbl_ausgabe.text = aus
+    mix_marke.hidden = not (da and mix_bereit and mix_idx >= 0) or gesperrt
 
 
 def bild_zeigen():
@@ -585,7 +651,7 @@ def overlay_text(name, wert):
     if not overlay_an or update_laeuft:
         return
     ov_name.text = name
-    schrift_setzen(ov_wert, FONT_GROSS, wert)
+    gross_setzen(ov_wert, wert)
     ov_rahmen.hidden = True
     ov_fuell.hidden = True
     overlay_bis = time.monotonic() + OVERLAY_SEK
@@ -608,7 +674,7 @@ def aufwachen():
 
 
 def taster_gedrueckt():
-    global f3_name, gesperrt, ausgabe_idx, mikro_idx
+    global f3_name, gesperrt, ausgabe_idx, mikro_idx, mix_idx
     if modus == "START":
         gehe_zu("HAUPT", 1)
         return
@@ -620,13 +686,18 @@ def taster_gedrueckt():
         elif cursor == 2:
             aktiv = ausgaben[ausgabe_idx] if 0 <= ausgabe_idx < len(ausgaben) else None
             gehe_zu("AUSGABE", cursor_auf("AUSGABE", aktiv))
-        else:
+        elif cursor == 3:
             aktiv = mikros[mikro_idx] if 0 <= mikro_idx < len(mikros) else None
             gehe_zu("MIKRO", cursor_auf("MIKRO", aktiv))
+        elif cursor == 4:
+            aktiv = mix_quellen[mix_idx] if 0 <= mix_idx < len(mix_quellen) else ""
+            gehe_zu("MIX", cursor_auf("MIX", aktiv))
+        else:
+            gehe_zu("BT", 1)
         return
     _, _, wert = eintraege()[cursor]
     if cursor == 0:
-        gehe_zu("HAUPT", {"PROG": 1, "AUSGABE": 2, "MIKRO": 3}[modus])
+        gehe_zu("HAUPT", HAUPT_MENUE.index(modus) + 1)
     elif wert is None:
         pass
     elif modus == "PROG":
@@ -646,6 +717,19 @@ def taster_gedrueckt():
             mikro_idx = mikros.index(wert)
         senden("SETIN\t" + wert)
         gehe_zu("START")
+    elif modus == "MIX":
+        mix_idx = mix_quellen.index(wert) if wert in mix_quellen else -1
+        senden("SETMIX\t" + wert)
+        gehe_zu("START")
+        overlay_text("Mikro-Mix", wert or "aus")
+    elif modus == "BT":
+        for g in bt_geraete:
+            if g[0] == wert and g[1] != 2:
+                verbinden = g[1] == 0
+                senden("BTCON\t%s\t%d" % (wert, 1 if verbinden else 0))
+                g[1] = 2                       # bis der PC den neuen Zustand meldet
+                menue_zeichnen()
+                break
 
 
 def fader_senden(i, wert):
@@ -672,6 +756,7 @@ def cfg_anwenden(teile):
 def zeile_verarbeiten(zeile):
     global apps, ausgaben, ausgabe_idx, mikros, mikro_idx, f3_name, letzte_rx
     global gesperrt, namen, update_laeuft, mute_an, mute_name, mute_bekannt
+    global mix_bereit, mix_quellen, mix_idx, bt_geraete
     letzte_rx = time.monotonic()
     teile = zeile.split("\t")
     befehl = teile[0]
@@ -695,6 +780,20 @@ def zeile_verarbeiten(zeile):
             ausgabe_idx, ausgaben = idx, teile[2:]
         else:
             mikro_idx, mikros = idx, teile[2:]
+    elif befehl == "MIXS" and len(teile) >= 3:
+        try:
+            mix_bereit, mix_idx = teile[1] == "1", int(teile[2])
+        except ValueError:
+            mix_bereit, mix_idx = False, -1
+        mix_quellen = teile[3:]
+    elif befehl == "BT":
+        neu = []
+        for k in range(1, len(teile) - 2, 3):
+            try:
+                neu.append([teile[k], int(teile[k + 1]), int(teile[k + 2])])
+            except ValueError:
+                pass
+        bt_geraete = neu
     elif befehl == "F3" and len(teile) > 1:
         if len(teile) > 2 and teile[2] == "1" and teile[1] != f3_name:
             gesperrt = True
@@ -858,10 +957,12 @@ while True:
                 lbl_hinweis.text = soll
             ico_ausgabe.hidden = True
             lbl_ausgabe.hidden = True
+            mix_marke.hidden = True
         elif lbl_hinweis.text or ico_ausgabe.hidden:
             lbl_hinweis.text = ""
             ico_ausgabe.hidden = False
             lbl_ausgabe.hidden = False
+            start_zeichnen()
 
     # Bildschirmschoner: gedimmtes, wanderndes Logo (schont das OLED, sieht aber nicht "aus" aus)
     if schoner_sek > 0 and not update_laeuft:

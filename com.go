@@ -64,6 +64,7 @@ var (
 	pkeyDeviceFriendlyName          = propertyKey{mustGUID("{A45C254E-DF1C-4EFD-8020-67D146A850E0}"), 14}
 	pkeyDeviceDesc                  = propertyKey{mustGUID("{A45C254E-DF1C-4EFD-8020-67D146A850E0}"), 2}
 	pkeyDeviceInterfaceFriendlyName = propertyKey{mustGUID("{026E516E-B814-414B-83CD-856D6FEF4822}"), 2}
+	pkeyDeviceContainerID           = propertyKey{mustGUID("{8C7ED206-3F8A-4827-B3AB-AE9E1FAEFC6C}"), 2}
 )
 
 // propVariant hat auf x64 24 Bytes.
@@ -164,7 +165,74 @@ func (e deviceEnumerator) Default(flow, role int) (device, error) {
 	return device{*d}, nil
 }
 
+// Device öffnet ein Gerät über seine ID (auch Filter-IDs wie "{2}.\\?\bthenum#…").
+func (e deviceEnumerator) Device(id string) (device, error) {
+	p, err := windows.UTF16PtrFromString(id)
+	if err != nil {
+		return device{}, err
+	}
+	d := heap[comObj]()
+	hr := e.call(5, ptr(p), ptr(d))
+	runtime.KeepAlive(p)
+	if int32(hr) < 0 || *d == 0 {
+		return device{}, hresult("GetDevice", hr)
+	}
+	return device{*d}, nil
+}
+
+// DevicesWithState listet Geräte mit beliebigem Zustand (mask = DEVICE_STATE_…).
+func (e deviceEnumerator) DevicesWithState(flow int, mask uint32) ([]device, error) {
+	pc := heap[comObj]()
+	hr := e.call(3, uintptr(flow), uintptr(mask), ptr(pc))
+	if int32(hr) < 0 {
+		return nil, hresult("EnumAudioEndpoints", hr)
+	}
+	coll := *pc
+	defer coll.Release()
+	n := heap[uint32]()
+	coll.call(3, ptr(n))
+	res := make([]device, 0, *n)
+	for i := uint32(0); i < *n; i++ {
+		d := heap[comObj]()
+		if hr := coll.call(4, uintptr(i), ptr(d)); int32(hr) >= 0 && *d != 0 {
+			res = append(res, device{*d})
+		}
+	}
+	return res, nil
+}
+
 // ---------------- IMMDevice ----------------
+
+// State liefert DEVICE_STATE_ACTIVE (1), _DISABLED (2), _NOTPRESENT (4) oder _UNPLUGGED (8).
+func (d device) State() uint32 {
+	s := heap[uint32]()
+	if hr := d.call(6, ptr(s)); int32(hr) < 0 {
+		return 0
+	}
+	return *s
+}
+
+// propertyGUID liest eine GUID-Eigenschaft (z. B. die Container-ID des Geräts).
+func (d device) propertyGUID(key propertyKey) (windows.GUID, bool) {
+	ps := heap[comObj]()
+	if hr := d.call(4, stgmRead, ptr(ps)); int32(hr) < 0 || *ps == 0 {
+		return windows.GUID{}, false
+	}
+	store := *ps
+	defer store.Release()
+	k := heap[propertyKey]()
+	*k = key
+	pv := heap[propVariant]()
+	if hr := store.call(5, ptr(k), ptr(pv)); int32(hr) < 0 {
+		return windows.GUID{}, false
+	}
+	defer procPropVariantClear.Call(ptr(pv))
+	const vtCLSID = 72
+	if pv.vt != vtCLSID || pv.val[0] == 0 {
+		return windows.GUID{}, false
+	}
+	return *(*windows.GUID)(unsafe.Pointer(uintptr(pv.val[0]))), true
+}
 
 type device struct{ comObj }
 
