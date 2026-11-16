@@ -14,9 +14,12 @@ Raspberry Pi Pico 2 steuern Systemlautstärke, Mikrofon und einzelne Programme u
 - **Gruppen** wie in Wave Link: mehrere Programme (z. B. alle Spiele) auf einem Fader
 - **Alle Fader frei belegbar:** System, Mikrofon, Programm, Gruppe oder das aktive Fenster
 - **Stummschalten** per langem Druck auf den Drehgeber, mit Anzeige auf dem Display
-- **Menü am Dashboard:** Programm für Fader 3, Ausgabegerät und Mikrofon umschalten
+- **Mikro-Mix:** Ton eines Programms zusammen mit der eigenen Stimme als Mikrofon ausgeben
+  (Discord, OBS, Spiele-Chat) – braucht einmalig das kostenlose [VB-CABLE](https://vb-audio.com/Cable/)
+- **Bluetooth:** gekoppelte Kopfhörer und Lautsprecher verbinden/trennen, mit Akkustand
+- **Menü am Dashboard:** Programm für Fader 3, Ausgabegerät, Mikrofon, Mikro-Mix und Bluetooth
 - **Display:** Start-Animation, Lautstärke-Anzeige, Bildschirmschoner
-- **App:** moderne Oberfläche, Live-Anzeige, Umbenennen/Ausblenden von Programmen und Geräten
+- **App:** ruhige, klare Oberfläche, Live-Anzeige, Umbenennen/Ausblenden von Programmen und Geräten
 - **Firmware-Verwaltung:** Die App spielt die Pico-Software selbst auf und aktualisiert sie
 - **Automatische Updates** über GitHub Releases
 

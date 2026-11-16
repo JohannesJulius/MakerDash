@@ -314,7 +314,8 @@ func (a *Audio) refresh() {
 		}
 		for _, s := range sess {
 			debugf("Session pid=%d system=%v", s.pid, s.system)
-			if s.system || s.pid == 0 {
+			if s.system || s.pid == 0 || s.pid == ownPid {
+				// ownPid: der Mikro-Mix spielt selbst Ton ab (aufs virtuelle Kabel) – kein Programm fürs Menü
 				s.vol.Release()
 				continue
 			}
@@ -376,6 +377,8 @@ func (a *Audio) refresh() {
 		a.onChange(st)
 	}
 }
+
+var ownPid = uint32(os.Getpid())
 
 // processInfo liefert Schlüssel (exe-Name) und lesbaren Namen eines Prozesses.
 var debugLog = os.Getenv("MAKERDASH_DEBUG") != ""

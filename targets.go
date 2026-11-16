@@ -6,7 +6,7 @@ package main
 // und Stummschalten per langem Druck auf den Drehgeber.
 //
 // Ziel-Schreibweise: "master", "mic", "none", "focus" (Programm im aktiven Fenster),
-// "app:<exe>", "group:<id>". Zum Stummschalten zusätzlich "fader1" … "fader3"
+// "app:<exe>", "group:<id>", "mix" (Programm-Lautstärke im Mikro-Mix). Zum Stummschalten zusätzlich "fader1" … "fader3"
 // (= das, was der Fader gerade regelt).
 
 import (
@@ -17,6 +17,9 @@ import (
 )
 
 const focusLabel = "Aktives Fenster"
+
+// mixLabel: Ziel "mix" – der Fader regelt, wie laut das Programm im Mikro-Mix ist.
+const mixLabel = "Mikro-Mix"
 
 func groupByID(c *Config, id string) *Group {
 	for _, g := range c.Groups {
@@ -42,7 +45,7 @@ func fader3Target(c *Config) string {
 	switch {
 	case k == "":
 		return "none"
-	case k == "focus" || strings.HasPrefix(k, "group:"):
+	case k == "focus" || k == "mix" || strings.HasPrefix(k, "group:"):
 		return k
 	}
 	return "app:" + k
@@ -87,6 +90,8 @@ func validTarget(c *Config, t string, allowFaderRef bool) bool {
 	switch {
 	case t == "master" || t == "mic" || t == "none" || t == "focus":
 		return true
+	case t == "mix":
+		return !allowFaderRef // als Fader-Ziel ja, zum Stummschalten nein
 	case allowFaderRef && (t == "fader1" || t == "fader2" || t == "fader3"):
 		return true
 	case strings.HasPrefix(t, "group:"):
@@ -124,6 +129,8 @@ func targetLabel(st AudioState, c *Config, t string) string {
 		return "Mikrofon"
 	case t == "focus":
 		return focusLabel
+	case t == "mix":
+		return mixLabel
 	case t == "fader1" || t == "fader2" || t == "fader3":
 		return targetLabel(st, c, targetOf(c, int(t[5]-'0')))
 	case strings.HasPrefix(t, "group:"):
@@ -142,6 +149,18 @@ func setTargetVolume(n int, v int) {
 	var targets []string
 	withConfig(func(c *Config) { targets = resolveTarget(c, targetOf(c, n)) }, false)
 	for _, t := range targets {
+		if t == "mix" {
+			var app, mic float32
+			withConfig(func(c *Config) {
+				c.Mix.AppVol = (v + 5) / 10
+				app, mic = gainOf(c.Mix.AppVol), gainOf(c.Mix.MicVol)
+			}, false)
+			if mixer != nil {
+				mixer.SetGains(app, mic)
+			}
+			markDirty()
+			continue
+		}
 		audio.SetVolume(t, float32(v)/1000)
 	}
 }

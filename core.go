@@ -7,9 +7,12 @@ package main
 //   PC -> Pico:  PING | SYNC | APPS\t<name>... | OUTS\t<idx>\t<name>... | INS\t<idx>\t<name>...
 //                F3\t<name>[\t<sperren 0/1>] | LABELS\t<f1>\t<f2>\t<f3> | CFG\t<k>\t<v>...
 //                MUTE\t<0/1>\t<name> (ab Firmware 2.2)
+//                MIXS\t<bereit 0/1>\t<aktiv oder -1>\t<name>... (ab Firmware 2.3)
+//                BT\t<name>\t<0 getrennt/1 verbunden/2 beschäftigt>\t<Akku oder -1>... (ab Firmware 2.3)
 //                UPDATING | PROGRESS\t<0-100> | UPDATE_ABORT | REBOOT
 //   Pico -> PC:  PONG\tDASH\t<proto>\t<version>\t<boot ok> | F\t<1-3>\t<0-1000>
 //                SETAPP\t<name> | SETOUT\t<name> | SETIN\t<name> | MUTE (langer Druck, ab Firmware 2.2)
+//                SETMIX\t<name> (leer = kein Programm) | BTCON\t<name>\t<1 verbinden/0 trennen> (ab Firmware 2.3)
 //
 //   APPS enthält für das Menü "Fader 3" zuerst die Gruppen, dann die Programme, zuletzt "Aktives Fenster".
 
@@ -33,7 +36,7 @@ var (
 	lastApps []menuItem
 	lastOuts []menuItem
 	lastIns  []menuItem
-	lastSent string
+	lastSent = map[string]string{} // Befehl -> zuletzt gesendete Zeile
 
 	faderMu     sync.Mutex
 	faderValues = [3]int{-1, -1, -1}
@@ -114,6 +117,8 @@ type menus struct {
 	ins    []menuItem
 	curIn  int
 	f3     string
+	mix    []menuItem
+	curMix int
 }
 
 func deviceMenu(devs []DevInfo, def string, c *Config) (items []menuItem, cur int) {
@@ -151,6 +156,7 @@ func buildMenus(st AudioState, c *Config) (m menus) {
 			m.f3 = a.Name // gleicher Name wie im Menü (auch bei Dubletten)
 		}
 	}
+	m.mix, m.curMix = mixMenu(m.apps, st, c)
 	return
 }
 
@@ -194,12 +200,14 @@ func listLine(cmd string, cur int, items []menuItem) string {
 func pushToPico(force bool) {
 	st := audio.State()
 	var m menus
-	var f1, f2, mute string
+	var f1, f2, mute, mix string
 	withConfig(func(c *Config) {
 		m = buildMenus(st, c)
 		f1, f2 = targetLabel(st, c, c.Fader1), targetLabel(st, c, c.Fader2)
 		mute = muteLine(st, c)
+		mix = mixLine(m.mix, m.curMix, st, c)
 	}, false)
+	btItems, btLine := btMenu()
 	lines := []string{
 		listLine("APPS", -2, m.apps),
 		listLine("OUTS", m.curOut, m.outs),
@@ -207,17 +215,24 @@ func pushToPico(force bool) {
 		"F3\t" + m.f3,
 		"LABELS\t" + f1 + "\t" + f2 + "\t" + m.f3,
 		mute,
+		mix,
+		btLine,
 	}
-	all := strings.Join(lines, "\n")
+	// Jede Zeile nur schicken, wenn sie sich geändert hat – sonst würde z. B. ein neuer
+	// Akkustand das Programm-Menü am Dashboard neu aufbauen.
+	var send []string
 	menuMu.Lock()
-	lastApps, lastOuts, lastIns = m.apps, m.outs, m.ins
-	changed := all != lastSent
-	lastSent = all
-	menuMu.Unlock()
-	if changed || force {
-		for _, l := range lines {
-			link.Send(l)
+	lastApps, lastOuts, lastIns, lastMix, lastBT = m.apps, m.outs, m.ins, m.mix, btItems
+	for _, l := range lines {
+		cmd, _, _ := strings.Cut(l, "\t")
+		if force || lastSent[cmd] != l {
+			lastSent[cmd] = l
+			send = append(send, l)
 		}
+	}
+	menuMu.Unlock()
+	for _, l := range send {
+		link.Send(l)
 	}
 }
 
@@ -288,6 +303,22 @@ func handleLine(line string) {
 		if len(f) > 1 {
 			if id := lookup(lastOuts, f[1]); id != "" {
 				audio.SetDefaultDevice(id)
+			}
+		}
+	case "SETMIX":
+		name := ""
+		if len(f) > 1 {
+			name = f[1]
+		}
+		if name == "" {
+			setMixSource("")
+		} else if key := lookup(lastMix, name); key != "" {
+			setMixSource(key)
+		}
+	case "BTCON":
+		if len(f) > 2 && bt != nil {
+			if id := lookup(lastBT, f[1]); id != "" {
+				bt.SetConnected(id, f[2] == "1")
 			}
 		}
 	case "SETIN":

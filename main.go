@@ -13,8 +13,6 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-
-
 func init() {
 	// Fenster, Tray und WebView2 laufen alle im Haupt-Thread
 	runtime.LockOSThread()
@@ -50,6 +48,9 @@ func main() {
 			openUI = true
 		case "--debug":
 			debugLog = true
+		case "--selftest":
+			runSelftest()
+			return
 		}
 	}
 	migrateLegacy()
@@ -78,12 +79,18 @@ func main() {
 	trayAdd()
 
 	link = NewLinkDeferred()
+	btOK := checkGuards()
+	mixer = NewMixer(markDirty)
 	audio = NewAudio(func(st AudioState) {
 		rememberSeen(st)
 		reapplyOnNewApps(st)
+		updateMix()
 		pushToPico(false)
 		markDirty()
 	})
+	if btOK {
+		startBluetooth()
+	}
 	link.Start(handleLine, onConnect, onStatus)
 	go uiPump()
 	go firmware.watchDrives()

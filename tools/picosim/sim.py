@@ -205,7 +205,7 @@ def _render_real(img):
                 for yy in range(e.height):
                     for xx in range(e.width):
                         X, Y = ox + e.x + xx, oy + e.y + yy
-                        if 0 <= X < 128 and 0 <= Y < 64: img.putpixel((X, Y), 255)
+                        if 0 <= X < 128 and 0 <= Y < 64: img.putpixel((X, Y), 255 if e.pixel_shader[0] else 0)
     walk(DISPLAY["d"].root_group, 0, 0)
 
 def render(scale=4):
@@ -227,7 +227,7 @@ def render(scale=4):
                 for yy in range(e.height):
                     for xx in range(e.width):
                         X, Y = ox+e.x+xx, oy+e.y+yy
-                        if 0 <= X < 128 and 0 <= Y < 64: img.putpixel((X, Y), 255)
+                        if 0 <= X < 128 and 0 <= Y < 64: img.putpixel((X, Y), 255 if e.pal[0] else 0)
             elif isinstance(e, Label) and e.text:
                 w = e.font.width(e.text); h = e.font.ascent + e.font.descent
                 ax, ay = e.anchor_point; px, py = e.anchored_position
