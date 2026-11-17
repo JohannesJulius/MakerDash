@@ -127,6 +127,13 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 2px var(-
 .ch{display:grid;grid-template-columns:22px minmax(170px,240px) minmax(60px,1fr) 58px;gap:16px;align-items:center;padding:11px 0;border-top:1px solid var(--line)}
 .ch .n{font-family:var(--display);font-size:18px;font-weight:600;color:var(--muted)}
 .ch .sel{min-width:0;width:100%}
+.ch input[type=range]{width:100%;min-width:60px}
+.ch input[type=range]:disabled{opacity:.35;cursor:default}
+.conn.soft .led{background:var(--text);opacity:.55}
+.devsvg.soft{cursor:ns-resize;touch-action:none}
+.devsvg.soft .knob{transition:none}
+.softnote{display:flex;gap:11px;align-items:flex-start;color:var(--muted);font-size:13px;margin:-6px 0 18px;max-width:72ch}
+.softnote svg{width:18px;height:18px;flex:none;margin-top:1px;color:var(--text)}
 .ch .pct{font-family:var(--display);font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right;line-height:1}
 .ch .pct small{font-size:12px;color:var(--muted);margin-left:2px;font-weight:400}
 .ch .kind{grid-column:2/-1;margin-top:-6px;font-size:12px;color:var(--dim)}
@@ -300,7 +307,7 @@ kbd{background:var(--raised);border:1px solid var(--line2);border-radius:4px;pad
       <div class="over">
         <div id="devArt"></div>
         <div class="strip">
-          <section><h3>Fader</h3><div id="faders"></div></section>
+          <section><h3>Fader</h3><div id="softNote"></div><div id="faders"></div></section>
           <section><h3>Windows</h3>
             <div class="kvrow"><span>Ausgabe</span><div class="sel"><select id="qOut" aria-label="Ausgabegerät"></select></div><span></span></div>
             <div class="kvrow"><span>Mikrofon</span><div class="sel"><select id="qIn" aria-label="Mikrofon"></select></div><span></span></div>
@@ -566,8 +573,8 @@ function deviceArt() {
     <rect x="${ox+2}" y="${oy+22}" width="${ow-4}" height=".6" fill="#fff" opacity=".85"/>
     <text x="${ox+2}" y="${oy+29.5}" fill="#fff" font-size="5.6" ${font}>${esc(trunc(out, mixOn ? 13 : 18))}</text>
     ${mixOn ? `<rect x="${ox+ow-14}" y="${oy+24.5}" width="12" height="6" fill="#fff"/><text x="${ox+ow-8}" y="${oy+29.3}" fill="#000" font-size="4.6" font-weight="700" text-anchor="middle" font-family="Consolas,monospace">MIX</text>` : ""}`
-    : `<text x="${ox+ow/2}" y="${oy+oh/2+2}" fill="#4a4c52" font-size="5.5" text-anchor="middle" ${font}>nicht verbunden</text>`;
-  return `<svg class="devsvg" viewBox="-2 -2 288 511" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dein Dashboard mit den aktuellen Fader-Stellungen">
+    : `<text x="${ox+ow/2}" y="${oy+oh/2+2}" fill="#4a4c52" font-size="5.5" text-anchor="middle" ${font}>${S && softMode() ? "nicht angeschlossen" : "startet …"}</text>`;
+  return `<svg class="devsvg ${S && softMode() ? "soft" : ""}" viewBox="-2 -2 288 511" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dein Dashboard mit den aktuellen Fader-Stellungen">
   <rect x="0" y="0" width="${PANEL.w}" height="${PANEL.h}" rx="14" fill="#202226" stroke="#3b3e45"/>
   ${screw(35.5, 45.9, 7.5)}${screw(248.1, 45.9, 7.5)}${screw(35.5, 485.2, 7.5)}${screw(248.1, 485.2, 7.5)}
   <rect x="100" y="70" width="83.6" height="76.4" rx="3" fill="#141517" stroke="#33353b"/>
@@ -589,6 +596,8 @@ function updateKnobs() {
     const g = document.getElementById("gl" + i); if (g) { g.setAttribute("y", ky); g.setAttribute("height", Math.max(0, PANEL.slotBot - 6 - ky)); }
     const p = document.getElementById("fp" + i); if (p) p.innerHTML = pct(LV[i], i) + (LV[i] < 0 ? "" : "<small>%</small>");
     const m = document.getElementById("fm" + i); if (m) m.style.width = meterW(LV[i] < 0 ? 0 : LV[i] / 10) + "%";
+    const r = document.getElementById("fr" + i);
+    if (r) { r.disabled = LV[i] < 0; if (document.activeElement !== r) r.value = LV[i] < 0 ? 0 : LV[i]; r.style.setProperty("--p", (r.value / 10) + "%"); }
     const b = document.getElementById("fb" + i); if (b) b.style.width = (LV[i] < 0 ? 0 : LV[i] / 10) + "%";
     const w = document.getElementById("wf" + i); if (w) { w.style.width = (LV[i] < 0 ? 0 : LV[i] / 10) + "%"; }
   }
@@ -596,8 +605,12 @@ function updateKnobs() {
 }
 
 // ---------- Übersicht ----------
+// Software-Modus: kein Dashboard angeschlossen (und es startet nicht gerade für ein Update neu)
+const fwBusy = () => S.firmware.state === "updating" || S.firmware.state === "restarting" || !["idle", "done", "error", ""].includes((S.setup || {}).state || "");
+const softMode = () => S && !S.conn.connected && !fwBusy();
 function fwBadge() {
   const f = S.firmware;
+  if (softMode()) return `<span class="badge acc"><i class="d"></i>Software-Modus</span>`;
   if (!S.conn.connected && f.state !== "updating" && f.state !== "restarting") return `<span class="badge"><i class="d"></i>Nicht verbunden</span>`;
   switch (f.state) {
     case "ok": return `<span class="badge ok"><i class="d"></i>Verbunden</span>`;
@@ -637,8 +650,10 @@ function renderOverview() {
   patch($("#devArt"), deviceArt());
   const c = S.conn, newPico = S.drives.bootsel || S.drives.circuitpy;
   $("#heroBadge").innerHTML = fwBadge();
+  const soft = softMode();
   $("#heroSub").textContent = c.connected ? `Dein Dashboard ist über ${c.port} verbunden und läuft mit Firmware ${c.firmware}.`
-    : newPico ? "Ein neuer Pico wurde gefunden. Er kann jetzt eingerichtet werden." : "Schließe dein Dashboard per USB an. Es wird automatisch erkannt.";
+    : newPico ? "Ein neuer Pico wurde gefunden. Er kann jetzt eingerichtet werden."
+    : soft ? "Kein Dashboard angeschlossen – du regelst die drei Kanäle hier in der App." : "Das Dashboard startet neu …";
   let act = "";
   if (!c.connected && newPico) act = `<div class="warnbox">${ICON.chip}<div>Neuer Pico gefunden. <button class="link" data-act="wiz">Jetzt einrichten</button></div></div>`;
   else if (S.firmware.state === "outdated") act = `<div class="warnbox">${ICON.down}<div>Für dein Dashboard gibt es Firmware ${esc(S.firmware.bundled)}. <button class="link" data-act="fw">Firmware aktualisieren</button></div></div>`;
@@ -651,9 +666,13 @@ function renderOverview() {
                       : `<div class="sel"><select id="f3sel" aria-label="Ziel von Fader 3">${targetSelect(val, true)}</select></div>`;
     const kind = targetKind(i < 2 ? val : f3AsTarget(val));
     const p = LV[i] < 0 ? 0 : LV[i] / 10;
-    return `<div class="ch"><span class="n">${i+1}</span>${sel}<div class="meter ${c.connected ? "" : "off"}"><i id="fm${i}" style="width:${meterW(p)}%"></i></div>
+    const ctl = soft
+      ? `<input type="range" id="fr${i}" data-n="${i+1}" min="0" max="1000" step="5" value="${LV[i] < 0 ? 0 : LV[i]}" style="--p:${p}%" ${LV[i] < 0 ? "disabled" : ""} aria-label="Lautstärke Kanal ${i+1}">`
+      : `<div class="meter ${c.connected ? "" : "off"}"><i id="fm${i}" style="width:${meterW(p)}%"></i></div>`;
+    return `<div class="ch"><span class="n">${i+1}</span>${sel}${ctl}
       <div class="pct" id="fp${i}">${pct(LV[i], i)}${LV[i] < 0 ? "" : "<small>%</small>"}</div>${kind ? `<div class="kind">${esc(kind)}</div>` : ""}</div>`;
   });
+  patch($("#softNote"), soft ? `<div class="softnote">${ICON.info}<div>Software-Modus: Ziehe die Regler hier oder direkt am Bild des Dashboards. Steckst du das Dashboard ein, übernehmen wieder die echten Fader.</div></div>` : "");
   patch($("#faders"), rows.join(""));
 
   const out = S.outputs.find(o => o.isDefault), mic = S.inputs.find(o => o.isDefault);
@@ -674,8 +693,37 @@ function renderOverview() {
 $("#faders").dataset.patch = 1;
 $("#faders").addEventListener("change", e => {
   if (e.target.dataset.fader) send("setFaderTarget", {n: +e.target.dataset.fader, target: e.target.value});
-  if (e.target.id === "f3sel" && e.target.value) { send("setFader3App", {key: e.target.value}); toast("info", "Fader 3 am Dashboard einmal ganz nach unten schieben"); }
+  if (e.target.id === "f3sel" && e.target.value) { send("setFader3App", {key: e.target.value}); if (S.conn.connected) toast("info", "Fader 3 am Dashboard einmal ganz nach unten schieben"); }
 });
+// Software-Modus: Regler in der App senden höchstens alle 40 ms den neuesten Wert
+const softQ = {}, softT = {};
+function softSet(n, v) {
+  v = Math.max(0, Math.min(1000, Math.round(v)));
+  LV = LV.slice(); LV[n - 1] = v; updateKnobs();
+  softQ[n] = v;
+  if (softT[n]) return;
+  send("setFader", {n, v});
+  softT[n] = setTimeout(function flush() { softT[n] = 0; if (softQ[n] !== undefined && softQ[n] !== v) { v = softQ[n]; send("setFader", {n, v}); softT[n] = setTimeout(flush, 40); } }, 40);
+}
+$("#faders").addEventListener("input", e => { if (e.target.dataset.n) softSet(+e.target.dataset.n, +e.target.value); });
+// … oder direkt am Bild des Dashboards ziehen
+let drag = null;
+$("#devArt").addEventListener("pointerdown", e => {
+  const svg = e.target.closest("svg.devsvg"); if (!svg || !softMode()) return;
+  const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+  const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+  const i = PANEL.faderX.findIndex(x => Math.abs(p.x - x) < 26);
+  if (i < 0 || p.y < PANEL.slotTop - 14 || p.y > PANEL.slotBot + 14 || LV[i] < 0) return;
+  drag = {svg, i}; svg.setPointerCapture(e.pointerId); e.preventDefault(); dragTo(e);
+});
+function dragTo(e) {
+  const pt = drag.svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+  const y = pt.matrixTransform(drag.svg.getScreenCTM().inverse()).y;
+  softSet(drag.i + 1, (PANEL.slotBot - 8 - y) / (SLOT_LEN - 16) * 1000);
+}
+$("#devArt").addEventListener("pointermove", e => { if (drag) dragTo(e); });
+$("#devArt").addEventListener("pointerup", () => { drag = null; });
+$("#devArt").addEventListener("pointercancel", () => { drag = null; });
 $("#qOut").addEventListener("change", e => send("setDefaultDevice", {key: e.target.value}));
 $("#qIn").addEventListener("change", e => send("setDefaultDevice", {key: e.target.value}));
 document.addEventListener("click", e => {
@@ -1031,9 +1079,9 @@ $("#wSkip").addEventListener("click", closeWizard);
 function renderConn() {
   const c = S.conn, f = S.firmware, el = $("#conn");
   const busy = f.state === "updating" || f.state === "restarting";
-  el.className = "conn " + (busy ? "busy" : c.connected ? "on" : "");
-  $("#connT").textContent = busy ? "Firmware-Update" : c.connected ? "Verbunden" : "Nicht verbunden";
-  $("#connS").textContent = busy ? (f.state === "restarting" ? "Startet neu …" : f.progress + " %") : c.connected ? `${c.port} · Firmware ${c.firmware}` : "Suche Dashboard …";
+  el.className = "conn " + (busy ? "busy" : c.connected ? "on" : "soft");
+  $("#connT").textContent = busy ? "Firmware-Update" : c.connected ? "Verbunden" : "Software-Modus";
+  $("#connS").textContent = busy ? (f.state === "restarting" ? "Startet neu …" : f.progress + " %") : c.connected ? `${c.port} · Firmware ${c.firmware}` : "Kein Dashboard";
   $("#verSide").textContent = "Version " + S.app.version;
 }
 function render() {
@@ -1103,7 +1151,7 @@ if (!hasBridge) {
   window.__demo = demo;
   window.__app.state(demo);
   window.__app.levels(demo.faders);
-  let t = 0; setInterval(() => { t += .05; window.__app.levels([720 + Math.sin(t) * 60 | 0, 450, 300 + Math.cos(t * .7) * 120 | 0]); window.__app.meters(.12 + Math.abs(Math.sin(t * 3)) * .3, .2 + Math.abs(Math.cos(t * 2)) * .35); }, 60);
+  let t = 0; setInterval(() => { if (window.__soft) return; t += .05; window.__app.levels([720 + Math.sin(t) * 60 | 0, 450, 300 + Math.cos(t * .7) * 120 | 0]); window.__app.meters(.12 + Math.abs(Math.sin(t * 3)) * .3, .2 + Math.abs(Math.cos(t * 2)) * .35); }, 60);
 }
 </script>
 </body>

@@ -4,8 +4,8 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"log"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -70,6 +70,8 @@ func (a AudioState) equal(b AudioState) bool {
 
 // Audio kapselt alle COM-Zugriffe in einem eigenen Thread.
 type Audio struct {
+	levels map[string]float32 // aktuelle Lautstärke je Ziel ("master", "mic", "app:<exe>"), 0..1
+
 	mu       sync.Mutex
 	state    AudioState
 	pending  map[string]float32 // "master", "mic", "app:<key>"
@@ -93,9 +95,21 @@ func NewAudio(onChange func(AudioState)) *Audio {
 		onChange: onChange,
 		sessions: map[string][]session{},
 		procs:    map[uint32]AppInfo{},
+		levels:   map[string]float32{},
 	}
 	go a.run()
 	return a
+}
+
+// Levels liefert die zuletzt gelesenen Lautstärken (0..1) je Ziel – für den Software-Modus.
+func (a *Audio) Levels() map[string]float32 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	out := make(map[string]float32, len(a.levels))
+	for k, v := range a.levels {
+		out[k] = v
+	}
+	return out
 }
 
 func (a *Audio) State() AudioState {
@@ -210,6 +224,16 @@ func (a *Audio) applyPending() {
 	a.pending = map[string]float32{}
 	a.mu.Unlock()
 	for target, v := range p {
+		// sofort merken, damit der Software-Modus nicht kurz auf den alten Wert zurückspringt
+		a.mu.Lock()
+		if target == "focus" {
+			if k := foregroundApp(); k != "" {
+				a.levels["app:"+k] = v
+			}
+		} else {
+			a.levels[target] = v
+		}
+		a.mu.Unlock()
 		switch {
 		case target == "master":
 			if a.master != 0 {
@@ -233,6 +257,18 @@ func (a *Audio) applyPending() {
 	}
 }
 
+// endpointLevel liest die Lautstärke eines Geräts (0..1).
+func endpointLevel(ev comObj) (float32, bool) {
+	if ev == 0 {
+		return 0, false
+	}
+	var v float32
+	if hr := ev.call(9, ptr(&v)); int32(hr) < 0 { // IAudioEndpointVolume::GetMasterVolumeLevelScalar
+		return 0, false
+	}
+	return v, true
+}
+
 func endpointMuted(ev comObj) bool {
 	if ev == 0 {
 		return false
@@ -243,17 +279,39 @@ func endpointMuted(ev comObj) bool {
 }
 
 // foregroundApp liefert den exe-Schlüssel des Programms im Vordergrund ("" wenn unbekannt).
+// Ist MakerDash selbst vorne (z. B. weil man gerade einen Regler in der App bewegt), gilt das
+// Programm, das davor im Vordergrund war.
 func foregroundApp() string {
 	h, _, _ := pGetForegroundWindow.Call()
 	if h == 0 {
-		return ""
+		return lastForeground()
 	}
 	var pid uint32
 	pGetWindowThreadProcessId.Call(h, uintptr(unsafe.Pointer(&pid)))
 	if pid == 0 {
-		return ""
+		return lastForeground()
 	}
-	return processInfo(pid).Key
+	if pid == ownPid {
+		return lastForeground()
+	}
+	k := processInfo(pid).Key
+	if k != "" {
+		fgMu.Lock()
+		fgLast = k
+		fgMu.Unlock()
+	}
+	return k
+}
+
+var (
+	fgMu   sync.Mutex
+	fgLast string
+)
+
+func lastForeground() string {
+	fgMu.Lock()
+	defer fgMu.Unlock()
+	return fgLast
 }
 
 func (a *Audio) refresh() {
@@ -368,8 +426,24 @@ func (a *Audio) refresh() {
 			}
 		}
 	}
+	levels := map[string]float32{}
+	if v, ok := endpointLevel(a.master); ok {
+		levels["master"] = v
+	}
+	if v, ok := endpointLevel(a.mic); ok {
+		levels["mic"] = v
+	}
+	for key, list := range a.sessions {
+		for _, s := range list {
+			var v float32
+			if hr := s.vol.call(4, ptr(&v)); int32(hr) >= 0 && (v > levels["app:"+key] || len(list) == 1) { // ISimpleAudioVolume::GetMasterVolume
+				levels["app:"+key] = v
+			}
+		}
+	}
 	st := AudioState{Apps: apps, Outputs: outs, DefaultOut: defOut, Inputs: ins, DefaultIn: defIn, Muted: muted}
 	a.mu.Lock()
+	a.levels = levels
 	changed := !a.state.equal(st)
 	a.state = st
 	a.mu.Unlock()

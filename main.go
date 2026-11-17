@@ -91,6 +91,7 @@ func main() {
 	if btOK {
 		startBluetooth()
 	}
+	go softPump()
 	link.Start(handleLine, onConnect, onStatus)
 	go uiPump()
 	go firmware.watchDrives()

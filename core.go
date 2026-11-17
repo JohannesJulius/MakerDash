@@ -354,8 +354,9 @@ func onStatus(connected bool, port string) {
 	if connected {
 		setTrayTip("MakerDash – verbunden (" + port + ")")
 	} else {
-		setTrayTip("MakerDash – nicht verbunden")
+		setTrayTip("MakerDash – Software-Modus (kein Dashboard)")
 		firmware.OnDisconnect()
 	}
+	softStatus(connected)
 	markDirty()
 }
