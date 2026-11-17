@@ -316,6 +316,7 @@ type uiMsg struct {
 	Alias    *string         `json:"alias"`
 	On       bool            `json:"on"`
 	Value    string          `json:"value"`
+	V        int             `json:"v"`
 	Hardware *Hardware       `json:"hardware"`
 	Display  *Display        `json:"display"`
 	Apps     *[]string       `json:"apps"`
@@ -352,6 +353,8 @@ func handleUIMessage(raw string) {
 func handleCommand(m uiMsg) {
 	defer markDirty()
 	switch m.Type {
+	case "setFader":
+		softSetFader(m.N, m.V)
 	case "setFaderTarget":
 		ok := false
 		withConfig(func(c *Config) {

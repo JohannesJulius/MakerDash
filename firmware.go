@@ -170,6 +170,21 @@ func (m *FirmwareManager) Snapshot() (FirmwareState, SetupState, []driveInfo, []
 	return m.st, m.setup, append([]driveInfo(nil), m.circuitpy...), append([]driveInfo(nil), m.bootsel...)
 }
 
+// Busy: Firmware-Update oder Einrichtung läuft – das Dashboard ist dann absichtlich kurz weg.
+func (m *FirmwareManager) Busy() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	switch m.st.State {
+	case "updating", "restarting":
+		return true
+	}
+	switch m.setup.State {
+	case "idle", "done", "error", "":
+		return m.busy
+	}
+	return true
+}
+
 func (m *FirmwareManager) set(fn func()) {
 	m.mu.Lock()
 	fn()
@@ -282,7 +297,9 @@ func (m *FirmwareManager) Update() {
 	}
 	m.busy = true
 	m.mu.Unlock()
-	m.set(func() { m.st = FirmwareState{State: "updating", Bundled: bundledFirmware, Message: "Wird vorbereitet …"} })
+	m.set(func() {
+		m.st = FirmwareState{State: "updating", Bundled: bundledFirmware, Message: "Wird vorbereitet …"}
+	})
 
 	connected, _, rem := link.Connected()
 	v2 := connected && rem.Proto >= 2

@@ -79,6 +79,11 @@ simulierte Firmware über ein pty (socat) mit der echten .exe unter Wine.
   Weicher Begrenzer in `clip16` (ab 75 % Vollaussteuerung). PC sendet `SCALE\t<max1>\t<max2>\t<max3>`,
   Firmware 2.4.0 zeigt damit die Prozent und eine 100-%-Markierung. Zuweisen von `boost` schaltet
   den Mikro-Mix ein. Mixer-Test mit Boost: `BOOST=300 tools/mixtest/run.sh 15`.
+- 2.5.0 (17.11.2026): Software-Modus (`softmode.go`): ohne Dashboard füllt `softPump` alle 400 ms
+  `faderValues` aus den echten Windows-Lautstärken (`Audio.Levels()`, gelesen in `refresh`), die
+  Oberfläche zeigt Regler statt Pegel (Befehl `setFader {n, v}`, auch Ziehen am Gerätebild).
+  `foregroundApp()` überspringt MakerDash selbst. Hinweis beim Abziehen nur, wenn kein
+  Firmware-Update läuft (`FirmwareManager.Busy`). Unter Wine nur ohne WebView2 prüfbar.
 - `tools/picosim/sim.py` nutzt die echten Adafruit-Bibliotheken, wenn Blinka installiert ist
   (`pip install adafruit-blinka-displayio`) – dann sind die Bilder pixelgenau; `SIM_FAKE=1` erzwingt
   die alte Nachbildung. Wine ist per `apt-get install wine64` installierbar.

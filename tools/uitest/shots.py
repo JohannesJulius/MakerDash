@@ -25,6 +25,22 @@ async def main():
         await pg.wait_for_timeout(300); await pg.screenshot(path="mix_setup.png")
         await pg.evaluate("window.__app.go('bluetooth')"); await pg.wait_for_timeout(300); await pg.screenshot(path="bluetooth_empty.png")
         await pg.evaluate("window.__app.state(window.__demo)")
+        # Software-Modus: kein Dashboard angeschlossen – Regler in der App und am Gerätebild
+        msgs = []
+        pg.on("console", lambda m: msgs.append(m.text) if "setFader" in m.text else None)
+        await pg.evaluate("""()=>{const d=JSON.parse(JSON.stringify(window.__demo)); d.conn.connected=false; d.firmware.state="unknown"; d.drives={bootsel:false,circuitpy:false}; d.faders=[640,333,-1]; d.f3Key="vlc.exe"; window.__soft=true; window.__app.state(d); window.__app.levels(d.faders); window.__app.go('overview')}""")
+        await pg.wait_for_timeout(300)
+        await pg.fill("#fr0", "300")
+        box = await pg.locator("#devArt svg").bounding_box()
+        # Fader 2 am Bild von unten nach oben ziehen
+        x = box["x"] + box["width"] * (141.8 + 2) / 288
+        await pg.mouse.move(x, box["y"] + box["height"] * 330 / 511); await pg.mouse.down()
+        await pg.mouse.move(x, box["y"] + box["height"] * 230 / 511, steps=8); await pg.mouse.up()
+        await pg.wait_for_timeout(300)
+        disabled = await pg.locator("#fr2").is_disabled()
+        print("soft:", len(msgs) > 2, "fader3 gesperrt:", disabled, msgs[:1], msgs[-1:])
+        await pg.screenshot(path="software.png")
+        await pg.evaluate("window.__soft=false; window.__app.state(window.__demo); window.__app.levels(window.__demo.faders)")
         await pg.evaluate("closeWizard(); toast('ok','Dashboard aktualisiert auf Version 2.3.0'); toast('error','Das Laufwerk CIRCUITPY wurde nicht gefunden.')"); await pg.wait_for_timeout(500)
         await pg.evaluate("""()=>{const d=JSON.parse(JSON.stringify(window.__demo)); d.firmware={state:"updating",progress:55,message:"Dateien werden übertragen …",bundled:"2.3.0"}; window.__app.state(d); window.__app.go('device')}""")
         await pg.wait_for_timeout(400); await pg.screenshot(path="fwupd.png")

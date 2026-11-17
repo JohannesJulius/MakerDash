@@ -18,6 +18,7 @@ Raspberry Pi Pico 2 steuern Systemlautstärke, Mikrofon und einzelne Programme u
   (Discord, OBS, Spiele-Chat) – braucht einmalig das kostenlose [VB-CABLE](https://vb-audio.com/Cable/)
 - **Mikro-Boost:** Mikrofon im Mikro-Mix bis 200/300/400 % verstärken, auf einen Fader legbar
 - **Bluetooth:** gekoppelte Kopfhörer und Lautsprecher verbinden/trennen, mit Akkustand
+- **Software-Modus:** ohne angeschlossenes Dashboard regelst du die drei Kanäle direkt in der App
 - **Menü am Dashboard:** Programm für Fader 3, Ausgabegerät, Mikrofon, Mikro-Mix und Bluetooth
 - **Display:** Start-Animation, Lautstärke-Anzeige, Bildschirmschoner
 - **App:** ruhige, klare Oberfläche, Live-Anzeige, Umbenennen/Ausblenden von Programmen und Geräten
