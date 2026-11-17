@@ -1,7 +1,7 @@
 #!/bin/bash
 # Prüft den Mikro-Mix unter Wine mit PulseAudio als Audiotreiber:
 #   Sinuston -> "Mikrofon (Test USB)" -> MakerDash-Mixer -> "CABLE Input" -> Aufnahme -> Auswertung
-# Braucht: wine, pulseaudio, sox, python3.   Aufruf: tools/mixtest/run.sh [Sekunden]
+# Braucht: wine, pulseaudio, sox, python3.   Aufruf: [BOOST=300] tools/mixtest/run.sh [Sekunden]
 set -e
 cd "$(dirname "$0")/../.."
 SECS=${1:-12}
@@ -20,7 +20,7 @@ parecord --device=cable.monitor --rate=48000 --channels=2 --format=s16le --file-
 REC=$!
 sleep 1
 wineserver -k 2>/dev/null || true
-MAKERDASH_MIXTEST=$SECS wine dist/apptest.exe -test.run 'TestMixerPassthrough' -test.v 2>&1 | grep -v -E '^ALSA|rundll32'
+MAKERDASH_MIXTEST=$SECS MAKERDASH_MIXBOOST=${BOOST:-100} wine dist/apptest.exe -test.run 'TestMixerPassthrough' -test.v 2>&1 | grep -v -E '^ALSA|rundll32'
 kill $REC $PLAY 2>/dev/null || true
 wait 2>/dev/null || true
 python3 tools/mixtest/analyse.py "$OUT/rec.wav"

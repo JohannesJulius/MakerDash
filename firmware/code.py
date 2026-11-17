@@ -3,7 +3,7 @@
 # Diese Datei wird von der App "MakerDash" installiert und aktualisiert.
 # Einstellungen (Pins usw.) stehen in settings.toml und werden in der App geändert.
 
-FW_VERSION = "2.3.0"
+FW_VERSION = "2.4.0"
 PROTO = 2
 BOOT_MARKER = "DASHBOOT 2"
 
@@ -317,7 +317,12 @@ for r in (rechteck(120, 1, 4, 48), rechteck(120, 1, 4, 57), rechteck(1, 10, 4, 4
           rechteck(1, 10, 123, 48)):
     ov_rahmen.append(r)
 ov_fuell = rechteck(1, 6, 6, 50)
-for teil in (ov_name, ov_wert, ov_rahmen, ov_fuell):
+# Markierung bei 100 %, wenn ein Fader mehr als 100 % regelt (Mikro-Boost): kleine Kerben über und unter dem Balken
+ov_marke = displayio.Group()
+ov_marke.append(rechteck(1, 3, 0, 45))
+ov_marke.append(rechteck(1, 3, 0, 58))
+ov_marke.hidden = True
+for teil in (ov_name, ov_wert, ov_rahmen, ov_fuell, ov_marke):
     overlay.append(teil)
 
 # --- Update-Bildschirm ---
@@ -432,6 +437,7 @@ mikros = []
 mikro_idx = -1
 f3_name = "-"
 namen = ["Fader 1", "Fader 2", "Fader 3"]
+skala = [100, 100, 100]      # Prozent bei Fader ganz oben (Mikro-Boost: z. B. 300)
 gesperrt = False
 letzte_rx = -100.0
 mix_bereit = False          # virtuelles Kabel am PC vorhanden
@@ -636,8 +642,13 @@ def overlay_zeigen(i):
     if i == 2 and gesperrt:
         schrift_setzen(ov_wert, FONT_MENU, "ganz runter!")
     else:
-        schrift_setzen(ov_wert, FONT_GROSS, "%d %%" % ((fader[i].wert + 5) // 10))
+        schrift_setzen(ov_wert, FONT_GROSS, "%d %%" % ((fader[i].wert * skala[i] + 500) // 1000))
     ov_fuell.width = max(1, fader[i].wert * 116 // 1000)
+    if skala[i] > 100:
+        ov_marke.x = 6 + 116 * 100 // skala[i]
+        ov_marke.hidden = False
+    else:
+        ov_marke.hidden = True
     ov_rahmen.hidden = False
     ov_fuell.hidden = False
     overlay_bis = time.monotonic() + OVERLAY_SEK
@@ -654,6 +665,7 @@ def overlay_text(name, wert):
     gross_setzen(ov_wert, wert)
     ov_rahmen.hidden = True
     ov_fuell.hidden = True
+    ov_marke.hidden = True
     overlay_bis = time.monotonic() + OVERLAY_SEK
     if display.root_group is not overlay:
         display.root_group = overlay
@@ -755,7 +767,7 @@ def cfg_anwenden(teile):
 
 def zeile_verarbeiten(zeile):
     global apps, ausgaben, ausgabe_idx, mikros, mikro_idx, f3_name, letzte_rx
-    global gesperrt, namen, update_laeuft, mute_an, mute_name, mute_bekannt
+    global gesperrt, namen, skala, update_laeuft, mute_an, mute_name, mute_bekannt
     global mix_bereit, mix_quellen, mix_idx, bt_geraete
     letzte_rx = time.monotonic()
     teile = zeile.split("\t")
@@ -809,6 +821,12 @@ def zeile_verarbeiten(zeile):
             return
     elif befehl == "LABELS" and len(teile) >= 4:
         namen = teile[1:4]
+        return
+    elif befehl == "SCALE" and len(teile) >= 4:
+        try:
+            skala = [max(100, min(400, int(x))) for x in teile[1:4]]
+        except ValueError:
+            skala = [100, 100, 100]
         return
     elif befehl == "CFG":
         cfg_anwenden(teile[1:])

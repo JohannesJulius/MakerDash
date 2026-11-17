@@ -357,6 +357,15 @@ kbd{background:var(--raised);border:1px solid var(--line2);border-radius:4px;pad
           <div class="dst" id="mixDst"></div>
         </div>
         <div class="card mt">
+          <div class="row" style="border-top:0;padding-top:0">
+            <div class="lbl"><h3>Mikro-Boost</h3><small>Macht dein Mikrofon im Mix lauter, als Windows es erlaubt. Über 100 % wird verstärkt, ein Begrenzer verhindert dabei hartes Übersteuern. Gilt für alles, was „CABLE Output“ als Mikrofon nutzt.</small></div>
+          </div>
+          <div class="row">
+            <div class="lbl"><b>Mikrofon höchstens</b><small id="boostHint"></small></div>
+            <div class="seg" id="boostSeg"><button data-v="100">100 %</button><button data-v="200">200 %</button><button data-v="300">300 %</button><button data-v="400">400 %</button></div>
+          </div>
+        </div>
+        <div class="card mt">
           <h3>So benutzt du den Mix</h3>
           <div class="row"><div class="lbl"><b>In Discord, OBS oder im Spiel</b><small>Als Mikrofon bzw. Eingabegerät einmal <span class="hl" id="mixRecName">CABLE Output</span> auswählen. Dein Windows-Standardmikrofon bleibt, wie es ist.</small></div></div>
           <div class="row"><div class="lbl"><b>Am Dashboard</b><small>Drehgeber drücken, <span class="hl">Mikro-Mix</span> öffnen und ein Programm wählen. „Aus“ lässt nur noch deine Stimme durch.</small></div></div>
@@ -479,7 +488,8 @@ let hwDraft = null;        // Entwurf der Pin-Belegung
 let wizStep = -1;
 
 // ---------- Hilfen ----------
-const pct = v => v < 0 ? "–" : Math.round(v / 10);
+const scaleOf = i => (S && S.scales && S.scales[i]) || 100;
+const pct = (v, i = 0) => v < 0 ? "–" : Math.round(v * scaleOf(i) / 1000);
 // Pegelanzeigen bestehen aus 6 px breiten Segmenten – auf ganze Segmente runden
 const meterW = p => Math.max(0, Math.min(100, p));
 const avatar = (name) => `<div class="av">${esc((name||"?").trim().charAt(0).toUpperCase())}</div>`;
@@ -577,7 +587,7 @@ function updateKnobs() {
     const v = LV[i] < 0 ? 500 : LV[i], ky = knobY(v);
     const k = document.getElementById("kn" + i); if (k) k.style.transform = `translateY(${ky}px)`;
     const g = document.getElementById("gl" + i); if (g) { g.setAttribute("y", ky); g.setAttribute("height", Math.max(0, PANEL.slotBot - 6 - ky)); }
-    const p = document.getElementById("fp" + i); if (p) p.innerHTML = pct(LV[i]) + (LV[i] < 0 ? "" : "<small>%</small>");
+    const p = document.getElementById("fp" + i); if (p) p.innerHTML = pct(LV[i], i) + (LV[i] < 0 ? "" : "<small>%</small>");
     const m = document.getElementById("fm" + i); if (m) m.style.width = meterW(LV[i] < 0 ? 0 : LV[i] / 10) + "%";
     const b = document.getElementById("fb" + i); if (b) b.style.width = (LV[i] < 0 ? 0 : LV[i] / 10) + "%";
     const w = document.getElementById("wf" + i); if (w) { w.style.width = (LV[i] < 0 ? 0 : LV[i] / 10) + "%"; }
@@ -600,10 +610,11 @@ function fwBadge() {
 }
 // ---------- Fader-Ziele ----------
 // Fader 1/2 speichern "app:<exe>", Fader 3 (historisch) nur "<exe>"; Gruppen "group:<id>", "focus" = aktives Fenster
-const f3AsTarget = v => !v ? "none" : (v === "focus" || v === "mix" || v.startsWith("group:")) ? v : "app:" + v;
+const f3AsTarget = v => !v ? "none" : (v === "focus" || v === "mix" || v === "boost" || v.startsWith("group:")) ? v : "app:" + v;
 function targetKind(t) {
   if (!t) return "";
   if (t === "focus") return "folgt dem Fenster im Vordergrund";
+  if (t === "boost") return S.mix.cable ? `Mikrofon im Mikro-Mix, 0 bis ${S.mix.boostMax} %` : "braucht den Mikro-Mix – noch nicht eingerichtet";
   if (t === "mix") return S.mix.sourceLabel ? `Lautstärke von ${S.mix.sourceLabel} im Mikro-Mix` : "Lautstärke des Programms im Mikro-Mix";
   if (t.startsWith("group:")) { const g = S.groups.find(x => "group:" + x.id === t); return g ? `Gruppe · ${g.apps.length} Programm${g.apps.length === 1 ? "" : "e"}` : "Gruppe"; }
   return "";
@@ -613,7 +624,7 @@ function targetSelect(val, f3) {
   const cur = f3 ? f3AsTarget(val) : val;
   const opt = (v, t) => `<option value="${esc(v)}" ${v === val ? "selected" : ""}>${esc(t)}</option>`;
   let h = f3 ? (val ? "" : opt("", "– Ziel wählen –")) : opt("master", "Systemlautstärke") + opt("mic", "Mikrofon");
-  h += opt("focus", "Aktives Fenster") + opt("mix", "Mikro-Mix");
+  h += opt("focus", "Aktives Fenster") + opt("mix", "Mikro-Mix") + opt("boost", "Mikro-Boost");
   if (S.groups.length) h += `<optgroup label="Gruppen">${S.groups.map(g => opt("group:" + g.id, g.name)).join("")}</optgroup>`;
   const apps = S.apps.filter(a => a.active || "app:" + a.key === cur);
   if (cur.startsWith("app:") && !apps.some(a => "app:" + a.key === cur)) apps.unshift({key: cur.slice(4), name: f3 ? S.f3 : cur.slice(4)});
@@ -641,7 +652,7 @@ function renderOverview() {
     const kind = targetKind(i < 2 ? val : f3AsTarget(val));
     const p = LV[i] < 0 ? 0 : LV[i] / 10;
     return `<div class="ch"><span class="n">${i+1}</span>${sel}<div class="meter ${c.connected ? "" : "off"}"><i id="fm${i}" style="width:${meterW(p)}%"></i></div>
-      <div class="pct" id="fp${i}">${pct(LV[i])}${LV[i] < 0 ? "" : "<small>%</small>"}</div>${kind ? `<div class="kind">${esc(kind)}</div>` : ""}</div>`;
+      <div class="pct" id="fp${i}">${pct(LV[i], i)}${LV[i] < 0 ? "" : "<small>%</small>"}</div>${kind ? `<div class="kind">${esc(kind)}</div>` : ""}</div>`;
   });
   patch($("#faders"), rows.join(""));
 
@@ -760,7 +771,8 @@ listEvents($("#devList"), "device");
 
 // ---------- Mikro-Mix ----------
 const setOptions = (el, html) => { if (document.activeElement !== el && el._h !== html) { el.innerHTML = html; el._h = html; } };
-const setRange = (el, out, v) => { if (document.activeElement !== el) el.value = v; el.style.setProperty("--p", el.value + "%"); out.textContent = el.value + " %"; };
+const fillOf = el => ((el.value - el.min) / ((el.max - el.min) || 1) * 100) + "%";
+const setRange = (el, out, v, max) => { if (max && +el.max !== max) el.max = max; if (document.activeElement !== el) el.value = v; el.style.setProperty("--p", fillOf(el)); out.textContent = el.value + " %"; };
 function renderMix() {
   const m = S.mix, st = m.status || {state: "off"};
   $("#mixOn").checked = m.enabled; $("#mixOn").disabled = !m.cable;
@@ -793,7 +805,11 @@ function renderMix() {
   if (m.source && !m.source.startsWith("group:") && !apps.some(a => a.key === m.source)) apps.unshift({key: m.source, name: m.sourceLabel});
   if (apps.length) h += `<optgroup label="Programme">${apps.map(a => opt(a.key, (a.alias || a.name) + (a.active === false ? " (läuft nicht)" : ""))).join("")}</optgroup>`;
   setOptions($("#mixSrc"), h);
-  setRange($("#mixMicVol"), $("#mixMicV"), m.micVol);
+  setRange($("#mixMicVol"), $("#mixMicV"), m.micVol, m.boostMax || 100);
+  $$("#boostSeg button").forEach(b => b.classList.toggle("on", +b.dataset.v === m.boostMax));
+  $("#boostHint").textContent = m.boostFader
+    ? `Liegt auf einem Fader: ganz oben sind ${m.boostMax} %.`
+    : "Tipp: Wähle in der Übersicht für einen Fader das Ziel „Mikro-Boost“.";
   setRange($("#mixAppVol"), $("#mixAppV"), m.appVol);
 
   const live = m.enabled && st.state === "running";
@@ -806,12 +822,13 @@ function renderMix() {
   patch($("#mixDst"), `<small>Kommt an als Mikrofon</small><b>${esc(rec.replace(/\s*\(.*\)$/, ""))}</b><small>${esc((rec.match(/\((.*)\)$/) || ["", "Virtuelles Kabel"])[1])}</small><div style="margin-top:10px">${state}</div>`);
 }
 $("#mixOn").addEventListener("change", e => send("setMixEnabled", {on: e.target.checked}));
+$("#boostSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (b) send("setBoostMax", {n: +b.dataset.v}); });
 $("#mixMic").addEventListener("change", e => send("setMixMic", {key: e.target.value}));
 $("#mixSrc").addEventListener("change", e => send("setMixSource", {key: e.target.value}));
 let mixVolTimer = {};
 for (const [id, out, kind] of [["#mixMicVol", "#mixMicV", "mic"], ["#mixAppVol", "#mixAppV", "app"]]) {
   $(id).addEventListener("input", e => {
-    e.target.style.setProperty("--p", e.target.value + "%"); $(out).textContent = e.target.value + " %";
+    e.target.style.setProperty("--p", fillOf(e.target)); $(out).textContent = e.target.value + " %";
     clearTimeout(mixVolTimer[kind]); mixVolTimer[kind] = setTimeout(() => send("setMixVol", {kind, n: +e.target.value}), 60);
   });
   $(id).addEventListener("change", e => e.target.blur());
@@ -1060,7 +1077,7 @@ if (!hasBridge) {
     firmware: {state: "ok", progress: 0, message: "", bundled: "2.3.0"},
     setup: {state: "idle", progress: 0, message: ""},
     drives: {circuitpy: "E:\\", bootsel: "", board: ""}, cpVersion: "10.3.1",
-    faders: [720, 450, 300], f3: "Spotify", f3Key: "spotify.exe",
+    faders: [720, 450, 300], scales: [100, 300, 100], f3: "Spotify", f3Key: "spotify.exe",
     groups: [{id: "g1", name: "Spiele", apps: ["cs2.exe", "steamwebhelper.exe"], active: true}, {id: "g2", name: "Musik", apps: ["spotify.exe", "chrome.exe"], active: true}],
     mute: {target: "mic", label: "Mikrofon", on: false},
     apps: [{key: "spotify.exe", name: "Spotify", alias: "", hidden: false, active: true}, {key: "discord.exe", name: "Discord", alias: "", hidden: false, active: true},
@@ -1069,9 +1086,9 @@ if (!hasBridge) {
     outputs: [{key: "o1", name: "Lautsprecher", full: "Lautsprecher (Realtek(R) Audio)", alias: "Boxen", hidden: false, active: true, isDefault: true},
               {key: "o2", name: "Headset", full: "Headset (Arctis Nova 7)", alias: "", hidden: false, active: true}, {key: "o3", name: "LG ULTRAGEAR", full: "LG ULTRAGEAR (NVIDIA High Definition Audio)", alias: "", hidden: true, active: true}],
     inputs: [{key: "i1", name: "Mikrofon", full: "Mikrofon (Shure MV7)", alias: "MV7", hidden: false, active: true, isDefault: true}, {key: "i2", name: "Headset-Mikrofon", full: "Headset-Mikrofon (Arctis Nova 7)", alias: "", hidden: false, active: true}],
-    config: {fader1: "master", fader2: "group:g1", hardware: {fader1: "GP28", fader2: "GP27", fader3: "GP26", invert: "000", encA: "GP10", encB: "GP11", encSW: "GP12", encDivisor: 4, encReverse: false, sda: "GP4", scl: "GP5"},
+    config: {fader1: "master", fader2: "boost", hardware: {fader1: "GP28", fader2: "GP27", fader3: "GP26", invert: "000", encA: "GP10", encB: "GP11", encSW: "GP12", encDivisor: 4, encReverse: false, sda: "GP4", scl: "GP5"},
              display: {brightness: 80, saver: 300, overlay: true, animation: true}, autostart: true, autoUpdate: true, autoFirmware: true, port: "", setupDone: true, updateRepo: ""},
-    mix: {enabled: true, source: "spotify.exe", sourceLabel: "Spotify", appVol: 70, micVol: 100, micId: "", micName: "Mikrofon (Shure MV7)",
+    mix: {enabled: true, source: "spotify.exe", sourceLabel: "Spotify", appVol: 70, micVol: 135, boostMax: 300, boostFader: true, micId: "", micName: "Mikrofon (Shure MV7)",
           mics: [{key: "i1", name: "Mikrofon", full: "Mikrofon (Shure MV7)"}, {key: "i2", name: "Headset-Mikrofon", full: "Headset-Mikrofon (Arctis Nova 7)"}],
           cable: true, cablePlay: "CABLE Input (VB-Audio Virtual Cable)", cableRec: "CABLE Output (VB-Audio Virtual Cable)", cableRecId: "i9", outIsCable: false, inIsCable: false, supported: true,
           status: {state: "running", micOk: true, capturing: 1}},

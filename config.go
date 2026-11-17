@@ -54,8 +54,11 @@ type MixCfg struct {
 	Enabled bool   `json:"enabled,omitempty"`
 	Source  string `json:"source,omitempty"` // exe-Schlüssel oder "group:<id>"; "" = nur Mikrofon
 	AppVol  int    `json:"appVol"`           // 0..100
-	MicVol  int    `json:"micVol"`           // 0..100
-	MicID   string `json:"micId,omitempty"`  // "" = Standard-Mikrofon
+	MicVol  int    `json:"micVol"`           // 0..BoostMax (über 100 = Mikro-Boost)
+	// BoostMax: Obergrenze für das Mikrofon in Prozent (100–400). Ein Fader mit dem Ziel
+	// "boost" regelt das Mikrofon von 0 bis zu diesem Wert.
+	BoostMax int    `json:"boostMax,omitempty"`
+	MicID    string `json:"micId,omitempty"` // "" = Standard-Mikrofon
 }
 
 type Config struct {
@@ -109,7 +112,7 @@ func defaultConfig() *Config {
 		Devices:  map[string]*ItemCfg{},
 		Hardware: defaultHardware(),
 		Display:  defaultDisplay(),
-		Mix:      MixCfg{AppVol: 70, MicVol: 100},
+		Mix:      MixCfg{AppVol: 70, MicVol: 100, BoostMax: 200},
 	}
 }
 

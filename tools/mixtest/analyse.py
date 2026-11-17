@@ -1,5 +1,6 @@
 """Wertet die Aufnahme vom Test-Kabel aus: Kommt der 440-Hz-Ton an, und zwar ohne Aussetzer?"""
 import math
+import os
 import struct
 import sys
 import wave
@@ -25,13 +26,20 @@ gaps = sum(1 for r in body if r < 0.05)
 seg = left[(first + 30) * win : (last - 10) * win]
 zc = sum(1 for a, b in zip(seg, seg[1:]) if a < 0 <= b)
 freq = zc * rate / max(1, len(seg))
-# Knackser: Sprünge, die ein 440-Hz-Sinus mit diesem Pegel nicht haben kann
+# Knackser: Sprünge, die ein 440-Hz-Sinus mit diesem Pegel nicht haben kann. Beim Mikro-Boost
+# (Umgebungsvariable BOOST in Prozent) zählt der verstärkte Pegel vor dem Begrenzer.
+boost = int(os.environ.get("BOOST", "100") or 100) / 100
 peak = max(abs(x) for x in seg) or 1
-limit = peak * 2 * math.pi * 440 / rate * 2.5
+amp = max(peak, 0.5 * 32768 * boost)  # Testton hat −6 dB
+limit = amp * 2 * math.pi * 440 / rate * 2.5
 clicks = sum(1 for a, b in zip(seg, seg[1:]) if abs(b - a) > limit)
+hard = sum(1 for x in seg if abs(x) >= 32767)  # hart abgeschnitten (darf der Begrenzer nie)
 dur = len(body) / 100
 print(f"Ton von {first/100:.2f}s bis {last/100:.2f}s, ausgewertet {dur:.1f}s")
-print(f"Pegel im Mittel {sum(body)/len(body):.3f}, Frequenz {freq:.1f} Hz, Aussetzer (10 ms): {gaps}, Knackser: {clicks}")
-ok = gaps == 0 and abs(freq - 440) < 3 and clicks <= dur  # höchstens ~1 Taktkorrektur pro Sekunde
+print(f"Pegel im Mittel {sum(body)/len(body):.3f}, Spitze {peak/32768:.3f}, Frequenz {freq:.1f} Hz, "
+      f"Aussetzer (10 ms): {gaps}, Knackser: {clicks}, hart abgeschnitten: {hard}")
+ok = gaps == 0 and abs(freq - 440) < 3 and clicks <= dur and hard == 0  # höchstens ~1 Taktkorrektur pro Sekunde
+if boost > 1:
+    ok = ok and sum(body) / len(body) > 0.354 * 1.5  # Boost macht hörbar lauter
 print("OK" if ok else "FEHLER")
 sys.exit(0 if ok else 1)

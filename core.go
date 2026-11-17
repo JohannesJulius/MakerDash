@@ -7,6 +7,7 @@ package main
 //   PC -> Pico:  PING | SYNC | APPS\t<name>... | OUTS\t<idx>\t<name>... | INS\t<idx>\t<name>...
 //                F3\t<name>[\t<sperren 0/1>] | LABELS\t<f1>\t<f2>\t<f3> | CFG\t<k>\t<v>...
 //                MUTE\t<0/1>\t<name> (ab Firmware 2.2)
+//                SCALE\t<max1>\t<max2>\t<max3> (Prozent bei Fader ganz oben, z. B. 300 für Mikro-Boost; ab Firmware 2.4)
 //                MIXS\t<bereit 0/1>\t<aktiv oder -1>\t<name>... (ab Firmware 2.3)
 //                BT\t<name>\t<0 getrennt/1 verbunden/2 beschäftigt>\t<Akku oder -1>... (ab Firmware 2.3)
 //                UPDATING | PROGRESS\t<0-100> | UPDATE_ABORT | REBOOT
@@ -200,8 +201,9 @@ func listLine(cmd string, cur int, items []menuItem) string {
 func pushToPico(force bool) {
 	st := audio.State()
 	var m menus
-	var f1, f2, mute, mix string
+	var f1, f2, mute, mix, scale string
 	withConfig(func(c *Config) {
+		scale = fmt.Sprintf("SCALE\t%d\t%d\t%d", faderScale(c, 1), faderScale(c, 2), faderScale(c, 3))
 		m = buildMenus(st, c)
 		f1, f2 = targetLabel(st, c, c.Fader1), targetLabel(st, c, c.Fader2)
 		mute = muteLine(st, c)
@@ -217,6 +219,7 @@ func pushToPico(force bool) {
 		mute,
 		mix,
 		btLine,
+		scale,
 	}
 	// Jede Zeile nur schicken, wenn sie sich geändert hat – sonst würde z. B. ein neuer
 	// Akkustand das Programm-Menü am Dashboard neu aufbauen.
@@ -248,7 +251,11 @@ func sendDisplayCfg() {
 
 // setFader3App wird von der Oberfläche oder vom Dashboard-Menü aufgerufen.
 func setFader3App(key string, fromUI bool) {
-	withConfig(func(c *Config) { c.Fader3App = key }, true)
+	withConfig(func(c *Config) {
+		c.Fader3App = key
+		boostAssigned(c, key)
+	}, true)
+	updateMix()
 	// Das Dashboard sperrt Fader 3, bis er ganz unten war – bis dahin gilt die alte Stellung nicht
 	faderMu.Lock()
 	faderValues[2] = -1

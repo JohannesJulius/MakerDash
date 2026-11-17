@@ -69,17 +69,47 @@ func cableRank(friendly string) int {
 	return 3
 }
 
-// gainOf rechnet Prozent (0–100) in einen Faktor um; leicht gekrümmt, damit sich der Regler
-// im unteren Bereich feiner anfühlt (50 % ≈ −12 dB).
+// gainOf rechnet Prozent in einen Faktor um. Bis 100 % leicht gekrümmt, damit sich der Regler
+// im unteren Bereich feiner anfühlt (50 % ≈ −12 dB). Darüber verstärkt der Mikro-Boost linear:
+// 200 % = doppelte Spannung (+6 dB), 300 % = +9,5 dB, 400 % = +12 dB.
 func gainOf(percent int) float32 {
 	if percent <= 0 {
 		return 0
 	}
-	if percent > 100 {
-		percent = 100
+	if percent > maxBoost {
+		percent = maxBoost
 	}
 	p := float32(percent) / 100
+	if p > 1 {
+		return p
+	}
 	return p * p
+}
+
+const maxBoost = 400
+
+// boostMaxOf liefert die gültige Obergrenze des Mikro-Boosts (100–400, Standard 200).
+func boostMaxOf(v int) int {
+	switch {
+	case v <= 0:
+		return 200
+	case v < 100:
+		return 100
+	case v > maxBoost:
+		return maxBoost
+	}
+	return v
+}
+
+// boostPercent rechnet eine Fader-Stellung (0–1000) in Mikrofon-Prozent um.
+func boostPercent(v, max int) int {
+	if v < 0 {
+		v = 0
+	}
+	if v > 1000 {
+		v = 1000
+	}
+	return (v*boostMaxOf(max) + 500) / 1000
 }
 
 // macInPath prüft, ob eine Bluetooth-Adresse (12 Hex-Zeichen) in einem Gerätepfad vorkommt.

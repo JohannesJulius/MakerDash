@@ -37,6 +37,7 @@ cd tools/uitest && python3 shots.py        # UI-Screenshots mit Playwright (Demo
 cd tools/picosim && python3 test_v2.py     # Firmware in simulierter CircuitPython-Umgebung, rendert OLED
 python3 tools/picosim/test_labels.py       # Textpositionen mit echten Adafruit-Bibliotheken (Blinka)
 cd tools/picosim && python3 test_v23.py    # Menüs „Mikro-Mix“ und „Bluetooth“ (Firmware 2.3)
+cd tools/picosim && python3 test_v24.py    # Mikro-Boost-Anzeige (SCALE, Firmware 2.4)
 tools/mixtest/run.sh 20                    # Mixer unter Wine + PulseAudio: Sinus -> Test-Mikrofon -> Kabel, wertet Aussetzer aus
 tools/picosim/e2e_mix.sh                   # simulierte Firmware bedient das Mix-Menü der echten .exe unter Wine
 ```
@@ -46,7 +47,7 @@ Wine kann WebView2, Audio-Sitzungen und das Umschalten des Standardgeräts (IPol
 nachbilden – das muss auf echtem Windows geprüft werden. `tools/picosim/e2e_fw.py` verbindet die
 simulierte Firmware über ein pty (socat) mit der echten .exe unter Wine.
 
-## Stand (16.11.2026)
+## Stand (17.11.2026)
 - 2.0.0: Fenster blieb auf echtem Windows schwarz (WebView2 in verstecktes Fenster eingebettet).
 - 2.0.1: Fenster wird vor dem Einbetten angezeigt, `Show()` + `Resize()` danach, Log-Diagnose,
   Ausweichweg über Datei. **Auf echtem Windows bestätigt: App läuft (30.09.2026).**
@@ -73,6 +74,11 @@ simulierte Firmware über ein pty (socat) mit der echten .exe unter Wine.
   (Mikrofon -> Kabel, ohne Aussetzer), Menüs, Protokoll. **Auf echtem Windows NICHT geprüft:
   Programm-Aufnahme (Process Loopback), alles zu Bluetooth, VB-CABLE-Erkennung.** Wine kann beides
   nicht nachbilden. Bei Problemen zuerst `MakerDash.exe --selftest` -> `%APPDATA%\MakerDash\selftest.txt`.
+- 2.4.0 (17.11.2026): Mikro-Boost – Fader-Ziel `boost` regelt `Config.Mix.MicVol` von 0 bis
+  `Mix.BoostMax` (100–400 %, Standard 200; `gainOf`: bis 100 % quadratisch, darüber linear).
+  Weicher Begrenzer in `clip16` (ab 75 % Vollaussteuerung). PC sendet `SCALE\t<max1>\t<max2>\t<max3>`,
+  Firmware 2.4.0 zeigt damit die Prozent und eine 100-%-Markierung. Zuweisen von `boost` schaltet
+  den Mikro-Mix ein. Mixer-Test mit Boost: `BOOST=300 tools/mixtest/run.sh 15`.
 - `tools/picosim/sim.py` nutzt die echten Adafruit-Bibliotheken, wenn Blinka installiert ist
   (`pip install adafruit-blinka-displayio`) – dann sind die Bilder pixelgenau; `SIM_FAKE=1` erzwingt
   die alte Nachbildung. Wine ist per `apt-get install wine64` installierbar.
