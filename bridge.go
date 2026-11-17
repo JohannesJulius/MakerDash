@@ -116,6 +116,7 @@ type uiState struct {
 	} `json:"drives"`
 	CPVersion string    `json:"cpVersion"`
 	Faders    [3]int    `json:"faders"`
+	Scales    [3]int    `json:"scales"` // Prozent bei Fader ganz oben (Mikro-Boost: bis 400)
 	F3        string    `json:"f3"`
 	F3Key     string    `json:"f3Key"`
 	Apps      []uiItem  `json:"apps"`
@@ -151,8 +152,10 @@ type uiMix struct {
 	SourceLabel string    `json:"sourceLabel"`
 	AppVol      int       `json:"appVol"`
 	MicVol      int       `json:"micVol"`
-	MicID       string    `json:"micId"`   // eingestellt ("" = automatisch)
-	MicName     string    `json:"micName"` // tatsächlich benutzt
+	BoostMax    int       `json:"boostMax"`
+	BoostFader  bool      `json:"boostFader"` // Mikro-Boost liegt auf einem Fader
+	MicID       string    `json:"micId"`      // eingestellt ("" = automatisch)
+	MicName     string    `json:"micName"`    // tatsächlich benutzt
 	Mics        []uiItem  `json:"mics"`
 	Cable       bool      `json:"cable"` // VB-CABLE gefunden
 	CablePlay   string    `json:"cablePlay"`
@@ -218,6 +221,10 @@ func buildState() uiState {
 		}
 		s.Mix.Enabled, s.Mix.Source, s.Mix.SourceLabel = c.Mix.Enabled, c.Mix.Source, mixSourceLabel(st, c)
 		s.Mix.AppVol, s.Mix.MicVol, s.Mix.MicID = c.Mix.AppVol, c.Mix.MicVol, c.Mix.MicID
+		s.Mix.BoostMax, s.Mix.BoostFader = boostMaxOf(c.Mix.BoostMax), usesBoost(c)
+		for n := 1; n <= 3; n++ {
+			s.Scales[n-1] = faderScale(c, n)
+		}
 		s.F3Key = c.Fader3App
 		s.Config.Fader1, s.Config.Fader2 = c.Fader1, c.Fader2
 		s.Config.Hardware, s.Config.Display = c.Hardware, c.Display
@@ -357,10 +364,12 @@ func handleCommand(m uiMsg) {
 			} else if m.N == 2 {
 				c.Fader2 = m.Target
 			}
+			boostAssigned(c, m.Target)
 		}, true)
 		if !ok {
 			return
 		}
+		updateMix()
 		pushToPico(false)
 		link.Send("SYNC")
 	case "setMuteTarget":
@@ -460,21 +469,34 @@ func handleCommand(m uiMsg) {
 			setMixSource(m.Key)
 		}
 	case "setMixVol":
-		v := m.N
-		if v < 0 {
-			v = 0
-		}
-		if v > 100 {
-			v = 100
-		}
 		withConfig(func(c *Config) {
 			if m.Kind == "mic" {
-				c.Mix.MicVol = v
+				c.Mix.MicVol = clampInt(m.N, 0, boostMaxOf(c.Mix.BoostMax))
 			} else {
-				c.Mix.AppVol = v
+				c.Mix.AppVol = clampInt(m.N, 0, 100)
 			}
 		}, true)
 		updateMix()
+	case "setBoostMax":
+		withConfig(func(c *Config) {
+			c.Mix.BoostMax = boostMaxOf(m.N)
+			if c.Mix.MicVol > c.Mix.BoostMax {
+				c.Mix.MicVol = c.Mix.BoostMax
+			}
+		}, true)
+		// Fader mit Mikro-Boost sofort auf den neuen Bereich umrechnen
+		faderMu.Lock()
+		vals := faderValues
+		faderMu.Unlock()
+		for n := 1; n <= 3; n++ {
+			var isBoost bool
+			withConfig(func(c *Config) { isBoost = targetOf(c, n) == "boost" }, false)
+			if isBoost && vals[n-1] >= 0 {
+				setTargetVolume(n, vals[n-1])
+			}
+		}
+		updateMix()
+		pushToPico(false)
 	case "setMixMic":
 		withConfig(func(c *Config) { c.Mix.MicID = m.Key }, true)
 		updateMix()
@@ -620,4 +642,14 @@ func firstDrive() string {
 		return cp[0].Root
 	}
 	return ""
+}
+
+func clampInt(v, lo, hi int) int {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
 }

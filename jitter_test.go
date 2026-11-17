@@ -158,10 +158,57 @@ func TestJitterRecoversAfterPause(t *testing.T) {
 }
 
 func TestClip(t *testing.T) {
-	dst := make([]int16, 3)
-	clip16([]int32{40000, -40000, 123}, dst)
-	if dst[0] != 32767 || dst[1] != -32768 || dst[2] != 123 {
-		t.Fatalf("%v", dst)
+	in := []int32{40000, -40000, 123, -20000, 24576, 1 << 24, -(1 << 24)}
+	dst := make([]int16, len(in))
+	clip16(in, dst)
+	// unterhalb des Knicks unverändert
+	if dst[2] != 123 || dst[3] != -20000 || dst[4] != 24576 {
+		t.Fatalf("leise Werte verändert: %v", dst)
+	}
+	// darüber gestaucht, symmetrisch, nie über den Wertebereich
+	if dst[0] <= 24576 || dst[0] >= 32767 || dst[1] != -dst[0] {
+		t.Fatalf("Begrenzung: %v", dst)
+	}
+	if dst[5] < 32700 || dst[6] > -32700 {
+		t.Fatalf("Extremwerte: %v", dst)
+	}
+	// monoton: lauter rein = lauter raus
+	prev := int16(0)
+	for v := int32(0); v < 200000; v += 997 {
+		var o [1]int16
+		clip16([]int32{v}, o[:])
+		if o[0] < prev {
+			t.Fatalf("nicht monoton bei %d", v)
+		}
+		prev = o[0]
+	}
+}
+
+func TestBoost(t *testing.T) {
+	if gainOf(100) != 1 || gainOf(200) != 2 || gainOf(300) != 3 || gainOf(400) != 4 || gainOf(900) != 4 || gainOf(50) != 0.25 {
+		t.Fatal("gainOf mit Boost")
+	}
+	if boostMaxOf(0) != 200 || boostMaxOf(50) != 100 || boostMaxOf(300) != 300 || boostMaxOf(1000) != 400 {
+		t.Fatal("boostMaxOf")
+	}
+	if boostPercent(1000, 300) != 300 || boostPercent(500, 300) != 150 || boostPercent(0, 300) != 0 ||
+		boostPercent(-1, 300) != 0 || boostPercent(333, 0) != 67 || boostPercent(2000, 200) != 200 {
+		t.Fatal("boostPercent")
+	}
+	// Ein geboostetes, lautes Mikrofon darf nicht hart übersteuern
+	j := newJitterBuf()
+	pkt := make([]int16, 480*2)
+	for i := range pkt {
+		pkt[i] = 20000 // −4 dBFS
+	}
+	j.push(pkt)
+	j.push(pkt) // 20 ms Vorrat, sonst spielt der Puffer noch nicht
+	sum := make([]int32, 480*2)
+	j.mixInto(sum, gainOf(300))
+	out := make([]int16, len(sum))
+	clip16(sum, out)
+	if sum[0] != 60000 || out[0] >= 32767 || out[0] < 30000 {
+		t.Fatalf("Boost: Summe %d, Ausgabe %d", sum[0], out[0])
 	}
 }
 
@@ -199,7 +246,7 @@ func TestCableNames(t *testing.T) {
 		cableRank("Hi-Fi Cable Input (VB-Audio Hi-Fi Cable)") != 3 || cableRank("Mikrofon") != -1 {
 		t.Fatal("Rangfolge")
 	}
-	if gainOf(0) != 0 || gainOf(100) != 1 || gainOf(50) != 0.25 || gainOf(500) != 1 {
+	if gainOf(0) != 0 || gainOf(100) != 1 || gainOf(50) != 0.25 || gainOf(500) != 4 {
 		t.Fatal("gainOf")
 	}
 	if !macInPath(`{2}.\\?\bthenum#{0000110b}_vid#7&2a&0&38184c1d2f2a_c00000000#{6994}\snk`, "38184C1D2F2A") || macInPath("x", "") {

@@ -173,13 +173,23 @@ func (j *jitterBuf) reset() {
 	j.r, j.n, j.cnt, j.primed, j.peak, j.avg = 0, 0, 0, false, 0, 0
 }
 
-// clip16 begrenzt die Summe weich auf den Wertebereich von 16 Bit.
+// clip16 begrenzt die Summe weich auf den Wertebereich von 16 Bit. Bis 75 % Vollaussteuerung
+// bleibt alles unverändert; darüber wird zunehmend gestaucht, sodass auch ein stark
+// geboostetes Mikrofon nie hart übersteuert (kein Kratzen, nur etwas Sättigung).
 func clip16(src []int32, dst []int16) {
+	const knee = 24576        // 75 %
+	const room = 32767 - knee // Platz über dem Knick
 	for i, v := range src {
-		if v > 32767 {
-			v = 32767
-		} else if v < -32768 {
-			v = -32768
+		neg := v < 0
+		if neg {
+			v = -v
+		}
+		if v > knee {
+			x := int64(v - knee)
+			v = knee + int32(x*room/(x+room)) // nähert sich 32767, erreicht es nie
+		}
+		if neg {
+			v = -v
 		}
 		dst[i] = int16(v)
 	}

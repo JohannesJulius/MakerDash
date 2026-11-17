@@ -6,7 +6,7 @@ package main
 // und Stummschalten per langem Druck auf den Drehgeber.
 //
 // Ziel-Schreibweise: "master", "mic", "none", "focus" (Programm im aktiven Fenster),
-// "app:<exe>", "group:<id>", "mix" (Programm-Lautstärke im Mikro-Mix). Zum Stummschalten zusätzlich "fader1" … "fader3"
+// "app:<exe>", "group:<id>", "mix" (Programm-Lautstärke im Mikro-Mix), "boost" (Mikrofon im Mikro-Mix bis 400 %). Zum Stummschalten zusätzlich "fader1" … "fader3"
 // (= das, was der Fader gerade regelt).
 
 import (
@@ -20,6 +20,9 @@ const focusLabel = "Aktives Fenster"
 
 // mixLabel: Ziel "mix" – der Fader regelt, wie laut das Programm im Mikro-Mix ist.
 const mixLabel = "Mikro-Mix"
+
+// boostLabel: Ziel "boost" – der Fader regelt das Mikrofon im Mikro-Mix von 0 bis BoostMax (z. B. 300 %).
+const boostLabel = "Mikro-Boost"
 
 func groupByID(c *Config, id string) *Group {
 	for _, g := range c.Groups {
@@ -45,7 +48,7 @@ func fader3Target(c *Config) string {
 	switch {
 	case k == "":
 		return "none"
-	case k == "focus" || k == "mix" || strings.HasPrefix(k, "group:"):
+	case k == "focus" || k == "mix" || k == "boost" || strings.HasPrefix(k, "group:"):
 		return k
 	}
 	return "app:" + k
@@ -90,7 +93,7 @@ func validTarget(c *Config, t string, allowFaderRef bool) bool {
 	switch {
 	case t == "master" || t == "mic" || t == "none" || t == "focus":
 		return true
-	case t == "mix":
+	case t == "mix" || t == "boost":
 		return !allowFaderRef // als Fader-Ziel ja, zum Stummschalten nein
 	case allowFaderRef && (t == "fader1" || t == "fader2" || t == "fader3"):
 		return true
@@ -131,6 +134,8 @@ func targetLabel(st AudioState, c *Config, t string) string {
 		return focusLabel
 	case t == "mix":
 		return mixLabel
+	case t == "boost":
+		return boostLabel
 	case t == "fader1" || t == "fader2" || t == "fader3":
 		return targetLabel(st, c, targetOf(c, int(t[5]-'0')))
 	case strings.HasPrefix(t, "group:"):
@@ -145,14 +150,36 @@ func targetLabel(st AudioState, c *Config, t string) string {
 
 // ---------------- Lautstärke ----------------
 
+// faderScale: Was 100 % Fader-Weg bedeuten, in Prozent (Mikro-Boost z. B. 300, sonst 100).
+func faderScale(c *Config, n int) int {
+	if targetOf(c, n) == "boost" {
+		return boostMaxOf(c.Mix.BoostMax)
+	}
+	return 100
+}
+
+// usesBoost: Liegt der Mikro-Boost auf einem Fader?
+func usesBoost(c *Config) bool {
+	for n := 1; n <= 3; n++ {
+		if targetOf(c, n) == "boost" {
+			return true
+		}
+	}
+	return false
+}
+
 func setTargetVolume(n int, v int) {
 	var targets []string
 	withConfig(func(c *Config) { targets = resolveTarget(c, targetOf(c, n)) }, false)
 	for _, t := range targets {
-		if t == "mix" {
+		if t == "mix" || t == "boost" {
 			var app, mic float32
 			withConfig(func(c *Config) {
-				c.Mix.AppVol = (v + 5) / 10
+				if t == "mix" {
+					c.Mix.AppVol = (v + 5) / 10
+				} else {
+					c.Mix.MicVol = boostPercent(v, c.Mix.BoostMax)
+				}
 				app, mic = gainOf(c.Mix.AppVol), gainOf(c.Mix.MicVol)
 			}, false)
 			if mixer != nil {
@@ -256,4 +283,12 @@ func toggleMute() {
 		return
 	}
 	audio.SetMute(targets, !isMuted(st, targets))
+}
+
+// boostAssigned: Wird der Mikro-Boost einem Fader zugewiesen, muss der Mikro-Mix laufen –
+// sonst hätte der Fader keine Wirkung.
+func boostAssigned(c *Config, target string) {
+	if target == "boost" {
+		c.Mix.Enabled = true
+	}
 }

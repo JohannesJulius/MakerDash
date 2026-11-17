@@ -5,6 +5,7 @@ package main
 import (
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -112,6 +113,34 @@ func TestMixMenu(t *testing.T) {
 	}
 }
 
+func TestBoostTarget(t *testing.T) {
+	c := defaultConfig()
+	st := AudioState{}
+	if !validTarget(c, "boost", false) || validTarget(c, "boost", true) || targetLabel(st, c, "boost") != "Mikro-Boost" {
+		t.Fatal("Ziel boost")
+	}
+	if usesBoost(c) || faderScale(c, 2) != 100 {
+		t.Fatal("Standard ohne Boost")
+	}
+	c.Mix.Enabled = false
+	c.Fader2 = "boost"
+	boostAssigned(c, c.Fader2)
+	if !c.Mix.Enabled || !usesBoost(c) || faderScale(c, 2) != 200 || faderScale(c, 1) != 100 {
+		t.Fatalf("Fader 2 Boost: enabled=%v scale=%d", c.Mix.Enabled, faderScale(c, 2))
+	}
+	c.Mix.BoostMax = 300
+	c.Fader2 = "mic"
+	c.Fader3App = "boost"
+	if fader3Target(c) != "boost" || faderScale(c, 3) != 300 || faderScale(c, 2) != 100 {
+		t.Fatal("Fader 3 Boost")
+	}
+	// alte Konfiguration ohne boostMax
+	c.Mix.BoostMax = 0
+	if faderScale(c, 3) != 200 {
+		t.Fatal("Standard-Obergrenze")
+	}
+}
+
 // Läuft nur mit MAKERDASH_MIXTEST=<Sekunden> (siehe tools/mixtest/run.sh): schleift das
 // Test-Mikrofon über den echten Mixer auf das Test-Kabel.
 func TestMixerPassthrough(t *testing.T) {
@@ -136,8 +165,12 @@ func TestMixerPassthrough(t *testing.T) {
 	if mic.ID == "" {
 		t.Skip("kein Test-Mikrofon")
 	}
+	micGain := float32(1)
+	if pct, err := strconv.Atoi(os.Getenv("MAKERDASH_MIXBOOST")); err == nil {
+		micGain = gainOf(pct) // z. B. 300 = Mikro-Boost 300 %
+	}
 	m := NewMixer(nil)
-	m.Apply(mixWant{Enabled: true, CableID: play.ID, MicID: mic.ID, Keys: []string{"gibtsnicht.exe"}, AppGain: 1, MicGain: 1})
+	m.Apply(mixWant{Enabled: true, CableID: play.ID, MicID: mic.ID, Keys: []string{"gibtsnicht.exe"}, AppGain: 1, MicGain: micGain})
 	deadline := time.Now().Add(time.Duration(secs) * time.Second)
 	var peak float32
 	running := false
