@@ -647,7 +647,7 @@ function targetSelect(val, f3) {
 }
 
 function renderOverview() {
-  patch($("#devArt"), deviceArt());
+  if (!drag) patch($("#devArt"), deviceArt());   // nicht neu zeichnen, solange man daran zieht
   const c = S.conn, newPico = S.drives.bootsel || S.drives.circuitpy;
   $("#heroBadge").innerHTML = fwBadge();
   const soft = softMode();
@@ -695,35 +695,61 @@ $("#faders").addEventListener("change", e => {
   if (e.target.dataset.fader) send("setFaderTarget", {n: +e.target.dataset.fader, target: e.target.value});
   if (e.target.id === "f3sel" && e.target.value) { send("setFader3App", {key: e.target.value}); if (S.conn.connected) toast("info", "Fader 3 am Dashboard einmal ganz nach unten schieben"); }
 });
-// Software-Modus: Regler in der App senden höchstens alle 40 ms den neuesten Wert
-const softQ = {}, softT = {};
+// Software-Modus: Regler in der App senden höchstens alle 40 ms den neuesten Wert.
+// Solange man einen Regler bewegt (und kurz danach), gilt der eigene Wert: Die App meldet die
+// gesendeten Werte mit etwas Verzögerung zurück – die würden die Kappe sonst hinter die Maus ziehen.
+const softQ = {}, softT = {}, softSent = {}, softHold = [-Infinity, -Infinity, -Infinity];
+const SOFT_HOLD_MS = 1200;
+function softFlush(n) {
+  clearTimeout(softT[n]); softT[n] = 0;
+  if (softQ[n] !== undefined && softQ[n] !== softSent[n]) { softSent[n] = softQ[n]; send("setFader", {n, v: softQ[n]}); }
+}
 function softSet(n, v) {
   v = Math.max(0, Math.min(1000, Math.round(v)));
+  softHold[n - 1] = performance.now();
   LV = LV.slice(); LV[n - 1] = v; updateKnobs();
   softQ[n] = v;
   if (softT[n]) return;
-  send("setFader", {n, v});
-  softT[n] = setTimeout(function flush() { softT[n] = 0; if (softQ[n] !== undefined && softQ[n] !== v) { v = softQ[n]; send("setFader", {n, v}); softT[n] = setTimeout(flush, 40); } }, 40);
+  softFlush(n);
+  softT[n] = setTimeout(function tick() { softT[n] = 0; if (softQ[n] !== softSent[n]) { softFlush(n); softT[n] = setTimeout(tick, 40); } }, 40);
+}
+// Werte von der App übernehmen – außer für Regler, die gerade in der Oberfläche bewegt werden
+function mergeLevels(v) {
+  const now = performance.now();
+  return v.map((x, i) => (now - softHold[i] < SOFT_HOLD_MS || (drag && drag.i === i)) ? LV[i] : x);
 }
 $("#faders").addEventListener("input", e => { if (e.target.dataset.n) softSet(+e.target.dataset.n, +e.target.value); });
-// … oder direkt am Bild des Dashboards ziehen
+$("#faders").addEventListener("change", e => { if (e.target.dataset.n) softFlush(+e.target.dataset.n); });
+// … oder direkt am Bild des Dashboards ziehen. Greift man die Kappe, bleibt sie an der gegriffenen
+// Stelle unter der Maus; klickt man daneben in die Schiene, springt sie dorthin.
 let drag = null;
+const svgY = (svg, e) => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
 $("#devArt").addEventListener("pointerdown", e => {
-  const svg = e.target.closest("svg.devsvg"); if (!svg || !softMode()) return;
-  const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
-  const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+  const svg = e.target.closest("svg.devsvg"); if (!svg || !softMode() || e.button > 0) return;
+  const p = svgY(svg, e);
   const i = PANEL.faderX.findIndex(x => Math.abs(p.x - x) < 26);
   if (i < 0 || p.y < PANEL.slotTop - 14 || p.y > PANEL.slotBot + 14 || LV[i] < 0) return;
-  drag = {svg, i}; svg.setPointerCapture(e.pointerId); e.preventDefault(); dragTo(e);
+  const ky = knobY(LV[i]);
+  const grab = Math.abs(p.y - ky) <= 12 ? p.y - ky : 0;   // Kappe getroffen: Abstand zur Mitte merken
+  drag = {svg, i, grab, ctm: svg.getScreenCTM().inverse(), id: e.pointerId};
+  svg.setPointerCapture(e.pointerId); e.preventDefault();
+  dragTo(e);
 });
 function dragTo(e) {
   const pt = drag.svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
-  const y = pt.matrixTransform(drag.svg.getScreenCTM().inverse()).y;
+  const y = pt.matrixTransform(drag.ctm).y - drag.grab;   // Umrechnung vom Beginn des Ziehens – bleibt gültig
   softSet(drag.i + 1, (PANEL.slotBot - 8 - y) / (SLOT_LEN - 16) * 1000);
 }
-$("#devArt").addEventListener("pointermove", e => { if (drag) dragTo(e); });
-$("#devArt").addEventListener("pointerup", () => { drag = null; });
-$("#devArt").addEventListener("pointercancel", () => { drag = null; });
+function dragEnd() {
+  if (!drag) return;
+  const n = drag.i + 1; drag = null;
+  softFlush(n);
+  render();   // aufgeschobene Aktualisierung des Gerätebilds nachholen
+}
+$("#devArt").addEventListener("pointermove", e => { if (drag && e.pointerId === drag.id) dragTo(e); });
+$("#devArt").addEventListener("pointerup", dragEnd);
+$("#devArt").addEventListener("pointercancel", dragEnd);
+$("#devArt").addEventListener("lostpointercapture", dragEnd);
 $("#qOut").addEventListener("change", e => send("setDefaultDevice", {key: e.target.value}));
 $("#qIn").addEventListener("change", e => send("setDefaultDevice", {key: e.target.value}));
 document.addEventListener("click", e => {
@@ -1109,7 +1135,7 @@ window.__app = {
     if (firstState) { firstState = false; if (!s.config.setupDone) openWizard(0); }
     render();
   },
-  levels(v) { LV = v; updateKnobs(); },
+  levels(v) { LV = mergeLevels(v); updateKnobs(); },
   meters,
   toast,
   go,

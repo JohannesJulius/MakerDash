@@ -34,6 +34,7 @@ Die installierten Apps finden es selbst (auch über Rechtsklick aufs Tray-Symbol
 GOOS=windows GOARCH=amd64 go build -ldflags "-H windowsgui -X main.AppVersion=0.0.0-dev" -o dist/MakerDash.exe .
 GOOS=windows go test -c -o dist/apptest.exe . && wine dist/apptest.exe -test.v   # Tests unter Wine
 cd tools/uitest && python3 shots.py        # UI-Screenshots mit Playwright (Demo-Daten ohne Bridge)
+cd tools/uitest && python3 drag.py         # Fader am Gerätebild ziehen, misst Abstand Maus/Kappe
 cd tools/picosim && python3 test_v2.py     # Firmware in simulierter CircuitPython-Umgebung, rendert OLED
 python3 tools/picosim/test_labels.py       # Textpositionen mit echten Adafruit-Bibliotheken (Blinka)
 cd tools/picosim && python3 test_v23.py    # Menüs „Mikro-Mix“ und „Bluetooth“ (Firmware 2.3)
@@ -84,6 +85,10 @@ simulierte Firmware über ein pty (socat) mit der echten .exe unter Wine.
   Oberfläche zeigt Regler statt Pegel (Befehl `setFader {n, v}`, auch Ziehen am Gerätebild).
   `foregroundApp()` überspringt MakerDash selbst. Hinweis beim Abziehen nur, wenn kein
   Firmware-Update läuft (`FirmwareManager.Busy`). Unter Wine nur ohne WebView2 prüfbar.
+- 2.5.1 (17.11.2026): Ziehen am Gerätebild im Software-Modus repariert – die App meldet gesendete
+  Werte verzögert zurück (`levels`) und das Gerätebild wurde bei jedem `state` neu gezeichnet. Jetzt:
+  `mergeLevels` behält eigene Werte 1,2 s, kein Neuzeichnen von `#devArt` während `drag`,
+  Greif-Abstand zur Kappenmitte. Test: `python3 tools/uitest/drag.py` (bildet das Echo nach).
 - `tools/picosim/sim.py` nutzt die echten Adafruit-Bibliotheken, wenn Blinka installiert ist
   (`pip install adafruit-blinka-displayio`) – dann sind die Bilder pixelgenau; `SIM_FAKE=1` erzwingt
   die alte Nachbildung. Wine ist per `apt-get install wine64` installierbar.
