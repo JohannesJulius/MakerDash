@@ -28,6 +28,9 @@ und 0,96"-OLED (SSD1306) steuert Windows-Lautstärken. Sprache mit dem Nutzer: *
 Version in `VERSION` erhöhen, optional `release-notes/vX.Y.Z.md`, auf `main` pushen →
 `.github/workflows/release.yml` baut App + Installer + `SHA256SUMS.txt` und legt das Release an.
 Die installierten Apps finden es selbst (auch über Rechtsklick aufs Tray-Symbol installierbar).
+**Johannes' Wunsch (17.11.2026): Änderungen immer direkt veröffentlichen** – nach erfolgreichen Tests
+Version erhöhen, PR anlegen, nach grünem Build selbst mergen und das Release abwarten. Nicht vorher
+nachfragen, ob veröffentlicht werden soll; danach kurz sagen, was ungetestet ist.
 
 ## Bauen & Testen (Linux)
 ```bash
